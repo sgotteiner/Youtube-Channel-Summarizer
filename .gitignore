@@ -3,3 +3,4 @@ __pycache__
 channel_*
 vosk*
 *.wav
+.env
