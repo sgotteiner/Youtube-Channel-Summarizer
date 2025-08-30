@@ -14,7 +14,8 @@ def main():
     Path(path_to_save_transcriptions).mkdir(parents=True, exist_ok=True)
     Path(path_to_save_summaries).mkdir(parents=True, exist_ok=True)
 
-    # ChannelVideosDownloader(channel_name, path_to_save_videos)
+    ChannelVideosDownloader(channel_name, path_to_save_videos, 2)
+    exit()
 
     video_name = "Artificial Intelligence Moving Average 100 Highly Profitable Trading Strategies"
     video_path = f'{path_to_save_videos}/{video_name}.mp4'

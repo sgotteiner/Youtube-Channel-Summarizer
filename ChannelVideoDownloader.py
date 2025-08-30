@@ -1,9 +1,8 @@
-from pytube import YouTube
-import requests
-import re
+from pytubefix import YouTube
+from yt_dlp import YoutubeDL
 
 
-class ImageDownloader:
+class VideoDownloader:
     def __init__(self, youtube_video_url, path_to_save_video):
         self.youtube_video_url = youtube_video_url
         self.path_to_save = path_to_save_video  # Path to save the downloaded video
@@ -20,7 +19,7 @@ class ImageDownloader:
 
 
 class ChannelVideosDownloader:
-    def __init__(self, channel_name, path_to_save_videos):
+    def __init__(self, channel_name, path_to_save_videos, max_results=1):
         """
         This class finds the videos of a YouTube channel by its name and downloads them. It only downloads the first 30
         because that's what javascript loads before dynamically loading more when scrolling down. Getting all the videos
@@ -31,25 +30,27 @@ class ChannelVideosDownloader:
         The channel ID can be found at the page source of the channel page searching for "channel_id=".
         """
 
-        self.channel_url = 'https://www.youtube.com/@' + channel_name
+        self.channel_name = channel_name
+        self.max_results = max_results
 
-        self.video_urls = self.get_video_urls(self.channel_url)
+        self.video_urls = self.get_video_urls_from_channel_name(channel_name, max_results)
 
         for url in self.video_urls:
             print(url)
-            ImageDownloader(url, path_to_save_videos)
+            # VideoDownloader(url, path_to_save_videos)
 
-    def get_video_urls(self, channel_url):
-        video_urls = []
+    def get_video_urls_from_channel_name(self, channel_name, max_results=1):
+        if not channel_name.startswith("http"):
+            channel_name = f"https://www.youtube.com/c/{channel_name}"
 
-        # Construct the URL for the channel's videos tab
-        videos_url = f'{channel_url}/videos'
+            ydl_opts = {
+            "quiet": True,
+            "extract_flat": True,
+            "dump_single_json": True,
+        }
 
-        # Send an HTTP GET request to the videos tab
-        response = requests.get(videos_url)
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"{channel_name}/videos", download=False)
+            video_urls = [f"https://www.youtube.com/watch?v={e['id']}" for e in info.get("entries", []) if e.get("id")]
 
-        if response.status_code == 200:
-            video_urls = re.findall(r'/watch\?v=[\w-]+', response.text)
-            video_urls = ['https://www.youtube.com' + url for url in video_urls]
-
-        return video_urls
+        return video_urls[:max_results]
