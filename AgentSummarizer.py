@@ -1,9 +1,22 @@
+"""
+Module for summarizing text using OpenAI's API.
+"""
+
 import os
 import openai
 from dotenv import load_dotenv
+from typing import Optional
+
 
 class OpenAISummarizerAgent:
+    """Handles text summarization using OpenAI's API."""
+
     def __init__(self, is_runtime: bool = False):
+        """
+        Initialize the OpenAISummarizerAgent.
+        
+        :param is_runtime: Whether to make actual API calls or return mock responses
+        """
         self.is_runtime = is_runtime
         load_dotenv()
         api_key = os.getenv("OPENAI_API_KEY")
@@ -11,7 +24,13 @@ class OpenAISummarizerAgent:
             raise ValueError("API key not found. Make sure you have created a .env file with your OPENAI_API_KEY.")
         openai.api_key = api_key
 
-    def summary_call(self, transcription):
+    def summary_call(self, transcription: str) -> Optional[str]:
+        """
+        Generate a summary of the provided transcription.
+        
+        :param transcription: Text to summarize
+        :return: Summary text or None if an error occurred
+        """
         if not self.is_runtime:
             print("Runtime flag is False. Skipping actual OpenAI API call.")
             return "Mocked response: Hello! (runtime off)"
