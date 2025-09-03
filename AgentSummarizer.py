@@ -9,6 +9,7 @@ from typing import Optional
 
 
 class OpenAISummarizerAgent:
+<<<<<<< HEAD
     """Handles text summarization using OpenAI's API."""
 
     def __init__(self, is_runtime: bool = False):
@@ -17,7 +18,11 @@ class OpenAISummarizerAgent:
         
         :param is_runtime: Whether to make actual API calls or return mock responses
         """
+=======
+    def __init__(self, is_runtime: bool = False, logger=None):
+>>>>>>> qwen-demo
         self.is_runtime = is_runtime
+        self.logger = logger
         load_dotenv()
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
@@ -32,11 +37,11 @@ class OpenAISummarizerAgent:
         :return: Summary text or None if an error occurred
         """
         if not self.is_runtime:
-            print("Runtime flag is False. Skipping actual OpenAI API call.")
+            self.logger.info("Runtime flag is False. Skipping actual OpenAI API call.")
             return "Mocked response: Hello! (runtime off)"
 
         try:
-            print("Making a call to the OpenAI API...")
+            self.logger.info("Making a call to the OpenAI API...")
             response = openai.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -45,8 +50,8 @@ class OpenAISummarizerAgent:
                 ]
             )
             assistant_message = response.choices[0].message.content
-            print(f"\nSuccess! Assistant's response: '{assistant_message}'")
+            self.logger.info(f"\nSuccess! Assistant's response: '{assistant_message}'")
             return assistant_message
         except Exception as e:
-            print(f"\nAn error occurred during OpenAI API call: {e}")
+            self.logger.error(f"\nAn error occurred during OpenAI API call: {e}")
             return None
