@@ -3,8 +3,9 @@ import openai
 from dotenv import load_dotenv
 
 class OpenAISummarizerAgent:
-    def __init__(self, is_runtime: bool = False):
+    def __init__(self, is_runtime: bool = False, logger=None):
         self.is_runtime = is_runtime
+        self.logger = logger
         load_dotenv()
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
@@ -13,11 +14,11 @@ class OpenAISummarizerAgent:
 
     def summary_call(self, transcription):
         if not self.is_runtime:
-            print("Runtime flag is False. Skipping actual OpenAI API call.")
+            self.logger.info("Runtime flag is False. Skipping actual OpenAI API call.")
             return "Mocked response: Hello! (runtime off)"
 
         try:
-            print("Making a call to the OpenAI API...")
+            self.logger.info("Making a call to the OpenAI API...")
             response = openai.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -26,8 +27,8 @@ class OpenAISummarizerAgent:
                 ]
             )
             assistant_message = response.choices[0].message.content
-            print(f"\nSuccess! Assistant's response: '{assistant_message}'")
+            self.logger.info(f"\nSuccess! Assistant's response: '{assistant_message}'")
             return assistant_message
         except Exception as e:
-            print(f"\nAn error occurred during OpenAI API call: {e}")
+            self.logger.error(f"\nAn error occurred during OpenAI API call: {e}")
             return None

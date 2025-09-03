@@ -1,25 +1,40 @@
 from pytubefix import YouTube
 from yt_dlp import YoutubeDL
+from pathlib import Path
+import concurrent.futures
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(threadName)s - %(message)s')
 
 
 class VideoDownloader:
-    def __init__(self, youtube_video_url, path_to_save_video):
+    def __init__(self, youtube_video_url, path_to_save_video, logger):
         self.youtube_video_url = youtube_video_url
         self.path_to_save = path_to_save_video  # Path to save the downloaded video
+        self.logger = logger
         self.download_video()
 
     def download_video(self):
         try:
             yt = YouTube(self.youtube_video_url)
+            video_title = yt.title
+            self.logger.info(f"Starting download for '{video_title}'...")
+
             video = yt.streams.filter(file_extension='mp4', progressive=True).first()
+            video_filepath = Path(self.path_to_save) / video.default_filename
+            if video_filepath.exists():
+                self.logger.info(f"Video '{video_title}' already exists. Skipping download.")
+                return
+
             video.download(self.path_to_save)
-            print(f'Download successful. Video saved at: {self.path_to_save}')
+            self.logger.info(f"Download successful for '{video_title}'.")
         except Exception as e:
-            print(f'Error: {e}')
+            self.logger.error(f'Error downloading {self.youtube_video_url}: {e}')
 
 
 class ChannelVideosDownloader:
-    def __init__(self, channel_name, path_to_save_videos, max_results=1):
+    def __init__(self, channel_name, path_to_save_videos, max_results=1, logger=None):
         """
         This class finds the videos of a YouTube channel by its name and downloads them. It only downloads the first 30
         because that's what javascript loads before dynamically loading more when scrolling down. Getting all the videos
@@ -32,12 +47,12 @@ class ChannelVideosDownloader:
 
         self.channel_name = channel_name
         self.max_results = max_results
+        self.logger = logger
 
         self.video_urls = self.get_video_urls_from_channel_name(channel_name, max_results)
 
-        for url in self.video_urls:
-            print(url)
-            # VideoDownloader(url, path_to_save_videos)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            executor.map(lambda url: VideoDownloader(url, path_to_save_videos, self.logger), self.video_urls)
 
     def get_video_urls_from_channel_name(self, channel_name, max_results=1):
         if not channel_name.startswith("http"):

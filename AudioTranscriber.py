@@ -6,13 +6,12 @@ import wave
 import sounddevice as sd
 from pydub import AudioSegment
 
-
 class AudioTranscriber:
-    def __init__(self, audio_path):
+    def __init__(self, audio_path, logger):
         """
         After a lot of trial and error this is the only function that worked for me.
         """
-
+        self.logger = logger
         self.transcription = self.chunk_and_transcribe_audio_with_speechrecognition(audio_path, 10000)
 
     def chunk_and_transcribe_audio_with_speechrecognition(self, audio_path, chunk_length_in_millis):
@@ -28,36 +27,44 @@ class AudioTranscriber:
         total_transcription = ''
         start_time = 0
         end_time = chunk_length_in_millis
+        transcribed_chunks = []
 
         while start_time < audio_length:
             chunk_index = start_time // chunk_length_in_millis
-            chunk_filename = f"chunk.wav"
+            chunk_filename = f"chunk_{chunk_index}.wav"
+            text = ""
 
             try:
                 chunk = full_audio[start_time:end_time]
-                chunk.export(f"chunk.wav", format="wav")
-            except Exception as e:
-                print(start_time, end_time, e)
-
-            audio_data = sr.AudioFile(f"chunk.wav")
-            with audio_data as source:
-                audio = recognizer.record(source)
-            try:
+                chunk.export(chunk_filename, format="wav")
+                audio_data = sr.AudioFile(chunk_filename)
+                with audio_data as source:
+                    audio = recognizer.record(source)
                 text = recognizer.recognize_google(audio)
+                transcribed_chunks.append(text)
+            except sr.UnknownValueError:
+                self.logger.warning(f"Chunk {chunk_index}: Google Speech Recognition could not understand audio.")
+                text = "[unintelligible] "
+                transcribed_chunks.append(text)
+            except sr.RequestError as e:
+                self.logger.error(f"Chunk {chunk_index}: Could not request results from Google Speech Recognition service; {e}")
+                text = f"[request error: {e}] "
+                transcribed_chunks.append(text)
             except Exception as e:
-                print(e)
-                print(f'reached chunk {chunk_index} out of {audio_length // chunk_length_in_millis}')
-                print(total_transcription)
-            total_transcription += text
-            os.remove(chunk_filename)
-            print(f"Chunk {chunk_index} Text: {text}")
+                self.logger.error(f"An unexpected error occurred during transcription of chunk {chunk_index}: {e}")
+                text = "[unexpected transcription error] "
+                transcribed_chunks.append(text)
+            finally:
+                if os.path.exists(chunk_filename):
+                    os.remove(chunk_filename)
+                self.logger.info(f"Chunk {chunk_index} Text: {text}")
 
             start_time += chunk_length_in_millis
             end_time += chunk_length_in_millis
             if end_time > audio_length:
                 end_time = audio_length
 
-        return total_transcription
+        return " ".join(transcribed_chunks)
 
     def generate_audio_transcription_speechrecognition(self, audio_path):
         recognizer = sr.Recognizer()
@@ -124,18 +131,24 @@ class AudioTranscriber:
 
             processed_frames += len(data)
             progress = min((processed_frames / total_data_length) * 100, 100)
-            print(f'\rProgress: {progress:.2f}%', end='')
+            self.logger.info(f'Progress: {progress:.2f}%', end='')
 
-        print("\nProcessing complete.")
+        print("Processing complete.")
         return recognizer.FinalResult()
 
 
 class AudioExtractor:
-    def __init__(self, video_path):
-        audio_path = './channel_audios/' + video_path.split('/')[-1].split('.')[0] + '.wav'
+    def __init__(self, video_path, audio_path, logger):
+        self.logger = logger
         self.extract_audio_as_wav(video_path, audio_path)
 
     def extract_audio_as_wav(self, video_path, audio_path):
-        video = VideoFileClip(video_path)
-        audio = video.audio
-        audio.write_audiofile(audio_path)
+        output_dir = os.path.dirname(audio_path)
+        os.makedirs(output_dir, exist_ok=True)
+        try:
+            video = VideoFileClip(video_path)
+            audio = video.audio
+            audio.write_audiofile(audio_path)
+            self.logger.info(f"Audio extracted successfully from {video_path} to {audio_path}")
+        except Exception as e:
+            self.logger.error(f"Error extracting audio from {video_path}: {e}")
