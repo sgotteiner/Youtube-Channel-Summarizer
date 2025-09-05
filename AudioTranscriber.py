@@ -122,7 +122,7 @@ class AudioTranscriber:
         os.remove(temp_wav_file_name)
         return text
 
-    def generate_audio_transcription_vosk(self, audio_path: str, number_of_chunks: int = 300) -> Optional[str]:
+    def generate_audio_transcription_vosk(self, audio_path: str, number_of_chunks: int = 300) -> str:
         """
         Transcribe audio using Vosk offline speech recognition.
         

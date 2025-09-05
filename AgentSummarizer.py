@@ -9,19 +9,8 @@ from typing import Optional
 
 
 class OpenAISummarizerAgent:
-<<<<<<< HEAD
-    """Handles text summarization using OpenAI's API."""
-
-    def __init__(self, is_runtime: bool = False):
-        """
-        Initialize the OpenAISummarizerAgent.
-        
-        :param is_runtime: Whether to make actual API calls or return mock responses
-        """
-=======
-    def __init__(self, is_runtime: bool = False, logger=None):
->>>>>>> qwen-demo
-        self.is_runtime = is_runtime
+    def __init__(self, is_openai_runtime: bool = False, logger=None):
+        self.is_openai_runtime = is_openai_runtime
         self.logger = logger
         load_dotenv()
         api_key = os.getenv("OPENAI_API_KEY")
@@ -36,7 +25,7 @@ class OpenAISummarizerAgent:
         :param transcription: Text to summarize
         :return: Summary text or None if an error occurred
         """
-        if not self.is_runtime:
+        if not self.is_openai_runtime:
             self.logger.info("Runtime flag is False. Skipping actual OpenAI API call.")
             return "Mocked response: Hello! (runtime off)"
 

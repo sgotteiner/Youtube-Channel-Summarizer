@@ -72,9 +72,9 @@ def process_video(video_path: Path, path_to_save_audios: Path, path_to_save_tran
 
 def main():
     # --- Configuration ---
-    channel_name = 'TradeIQ'
-    num_videos_to_process = 7
-    is_runtime = True  # Set to True to make real API calls, False for mocked responses
+    channel_name = 'Tech With Tim'
+    num_videos_to_process = 9
+    is_openai_runtime = False  # Set to True to make real API calls, False for mocked responses
 
     # --- Setup Directories ---
     path_to_save_videos = Path(f'./channel_videos/{channel_name}')
@@ -91,7 +91,7 @@ def main():
     logger.info("--- Download complete ---")
 
     # --- Initialize Summarizer Agent ---
-    summarizer = OpenAISummarizerAgent(is_runtime, logger)
+    summarizer = OpenAISummarizerAgent(is_openai_runtime, logger)
 
     # --- 2. Process each downloaded video ---
     logger.info("\n--- Starting to process downloaded videos ---")
