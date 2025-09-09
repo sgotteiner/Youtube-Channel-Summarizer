@@ -14,7 +14,7 @@ Responsibilities:
 import concurrent.futures
 from pathlib import Path
 import logging
-from ChannelVideoDownloader import ChannelVideosDownloader
+from ChannelVideoDownloader import ChannelVideosDownloader, VideoDownloader
 from AudioTranscriber import AudioTranscriber, AudioExtractor
 from AgentSummarizer import OpenAISummarizerAgent
 from logger import Logger
@@ -58,6 +58,7 @@ def initialize_services(logger: logging.Logger, is_openai_runtime: bool) -> dict
         dict: A dictionary mapping service names to their initialized instances.
     """
     return {
+        'video_downloader': VideoDownloader(logger),
         'audio_extractor': AudioExtractor(logger),
         'audio_transcriber': AudioTranscriber(logger),
         'summarizer': OpenAISummarizerAgent(is_openai_runtime, logger),

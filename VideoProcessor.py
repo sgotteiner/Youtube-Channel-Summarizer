@@ -1,10 +1,10 @@
-""
+"""
 Encapsulates the entire processing pipeline for a single YouTube video.
 
 This class is responsible for managing the workflow of a video from transcription
 to summarization, including file management and cleanup. It is designed to be
 instantiated for each video that needs to be processed.
-""
+"""
 import os
 import re
 from pathlib import Path
@@ -66,17 +66,17 @@ class VideoProcessor:
         Main entry point to start the processing of the video.
         Orchestrates the entire pipeline from checking for existing files to cleanup.
         """
-        self.logger.info(f"Starting processing for video: {self.video_title} ({self.video_url})")
+        self.logger.info(f"--- Starting processing for video: '{self.video_title}' ---")
         if self._summary_exists():
-            self.logger.info(f"Summary for {self.video_title} already exists. Skipping.")
+            self.logger.info(f"Summary already exists for '{self.video_title}'. Skipping.")
             return
 
         transcription_text = self._get_transcription()
         if transcription_text:
             self._summarize_and_cleanup(transcription_text)
         else:
-            self.logger.warning(f"No transcription available for {self.video_title}. Skipping summarization.")
-        self.logger.info(f"Finished processing for video: {self.video_title}")
+            self.logger.warning(f"Could not obtain transcription for '{self.video_title}'. Skipping summarization.")
+        self.logger.info(f"--- Finished processing for video: '{self.video_title}' ---")
 
     def _summary_exists(self) -> bool:
         """Checks if a summary file already exists for this video."""
@@ -92,15 +92,21 @@ class VideoProcessor:
         Returns:
             Optional[str]: The transcription text, or None if it could not be obtained.
         """
+        self.logger.info("Step 1: Getting transcription...")
         if self.transcription_path.exists():
-            self.logger.info(f"Transcription for {self.video_title} already exists. Reading from file.")
+            self.logger.info(f"Transcription file found. Reading from: {self.transcription_path}")
             return self.transcription_path.read_text(encoding="utf-8")
 
         if self.has_captions:
-            self.logger.info(f"Attempting to download captions for {self.video_title}.")
+            self.logger.info("Video has captions. Attempting to download them.")
             transcription = self._download_captions()
             if transcription:
+                self.logger.info("Successfully downloaded and processed captions.")
                 return transcription
+            else:
+                self.logger.warning("Failed to download captions. Falling back to audio transcription.")
+        else:
+            self.logger.info("Video has no captions. Proceeding with audio transcription.")
 
         return self._transcribe_audio_from_video()
 
@@ -117,7 +123,6 @@ class VideoProcessor:
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(self.video_url, download=False)
                 lang = "en"
-                # Determine if user-uploaded or auto-generated captions are available
                 if info.get("subtitles", {}).get(lang):
                     ydl_opts["writesubtitles"] = True
                 elif info.get("automatic_captions", {}).get(lang):
@@ -134,13 +139,12 @@ class VideoProcessor:
                     os.remove(raw_subtitle_path)
                     return text
         except Exception as e:
-            self.logger.error(f"Error during subtitle download for {self.video_title}: {e}")
+            self.logger.error(f"Error during subtitle download for '{self.video_title}': {e}")
         return None
 
     def _process_vtt_file(self, vtt_path: Path) -> str:
         """Cleans a VTT subtitle file, returning only the spoken text."""
         lines = vtt_path.read_text(encoding="utf-8").splitlines()
-        # Filter out metadata and timestamps, keeping only the actual caption lines.
         cleaned_lines = [
             line.strip() for line in lines 
             if "-->" not in line and not line.startswith(("WEBVTT", "Kind:", "Language:")) and line.strip()
@@ -151,61 +155,69 @@ class VideoProcessor:
         """
         Manages the full audio transcription pipeline: download -> extract -> transcribe.
         """
-        video_downloader: VideoDownloader = self.services['video_downloader']
+        self.logger.info("Fallback pipeline: Transcribing from audio.")
+        video_downloader = self.services.get('video_downloader')
+        if not video_downloader:
+             # In the refactored main, video_downloader is not passed to VideoProcessor.
+             # Let's create it here if needed. This is a small fix.
+             video_downloader = VideoDownloader(self.logger)
+
         audio_extractor: AudioExtractor = self.services['audio_extractor']
         audio_transcriber: AudioTranscriber = self.services['audio_transcriber']
 
-        # Step 1: Download video if it doesn't exist
         if not self.video_path.exists():
+            self.logger.info(f"Downloading video to: {self.video_path}")
             video_downloader.download_video(self.video_url, self.video_title, self.upload_date, self.paths['videos'])
         if not self.video_path.exists():
-            self.logger.error(f"Video download failed for {self.video_title}. Cannot transcribe.")
+            self.logger.error("Video download failed. Cannot transcribe.")
             return None
 
-        # Step 2: Extract audio if it doesn't exist
         if not self.audio_path.exists():
+            self.logger.info(f"Extracting audio to: {self.audio_path}")
             audio_extractor.extract_audio(self.video_path, self.audio_path)
         if not self.audio_path.exists():
-            self.logger.error(f"Audio extraction failed for {self.video_title}. Cannot transcribe.")
+            self.logger.error("Audio extraction failed. Cannot transcribe.")
             return None
             
-        # Step 3: Transcribe audio
+        self.logger.info(f"Transcribing audio file: {self.audio_path}")
         transcription = audio_transcriber.transcribe_audio(self.audio_path)
         if transcription:
+            self.logger.info("Transcription successful. Saving to file.")
             self.transcription_path.write_text(transcription, encoding="utf-8")
         return transcription
 
     def _summarize_and_cleanup(self, transcription_text: str):
         """
-        Generates a summary from the transcription and performs cleanup of
-        intermediate files if configured to do so.
+        Generates a summary and optionally cleans up intermediate files.
         """
+        self.logger.info("Step 2: Summarizing transcription...")
         summarizer: OpenAISummarizerAgent = self.services['summarizer']
         
         self._handle_experimental_summary(summarizer.is_openai_runtime)
 
         if not self.summary_path.exists():
-            self.logger.info(f"Starting summarization for {self.video_title}...")
             summary = summarizer.summary_call(transcription_text)
             if summary:
                 self.summary_path.write_text(summary, encoding="utf-8")
-                self.logger.info(f"Summarization complete for {self.video_title}.")
+                self.logger.info(f"Summarization complete. Summary saved to: {self.summary_path}")
                 if self.is_save_only_summaries:
+                    self.logger.info("Step 3: Cleaning up intermediate files...")
                     self._cleanup_intermediate_files()
             else:
-                self.logger.error(f"Summarization failed for {self.video_title}.")
+                self.logger.error(f"Summarization failed for '{self.video_title}'.")
+        else:
+            # This case should ideally not be hit due to the initial check, but is here for safety.
+            self.logger.info("Summary already existed. Skipping summarization.")
 
     def _handle_experimental_summary(self, is_openai_runtime: bool):
         """
         Deletes old experimental summaries if the OpenAI runtime is now active.
-        This ensures that mocked summaries are replaced with real ones.
         """
         experimental_summary_path = self.paths['summaries'].parent / 'experimental' / self.summary_path.name
         if is_openai_runtime and experimental_summary_path.exists():
-            self.logger.info(f"OpenAI runtime is ON. Deleting existing experimental summary for {self.video_title}.")
+            self.logger.info(f"OpenAI runtime is ON. Deleting existing experimental summary: {experimental_summary_path}")
             try:
                 os.remove(experimental_summary_path)
-                # If the experimental folder is now empty, remove it.
                 if not any(experimental_summary_path.parent.iterdir()):
                     os.rmdir(experimental_summary_path.parent)
             except Exception as e:
@@ -213,7 +225,6 @@ class VideoProcessor:
 
     def _cleanup_intermediate_files(self):
         """Deletes the video, audio, and transcription files for the video."""
-        self.logger.info(f"Deleting intermediate files for {self.video_title}.")
         for file_path in [self.video_path, self.audio_path, self.transcription_path]:
             if file_path.exists():
                 try:
