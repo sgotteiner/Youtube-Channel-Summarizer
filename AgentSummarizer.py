@@ -3,9 +3,10 @@ Module for summarizing text using OpenAI's API.
 """
 
 import os
+from typing import Optional
 import openai
 from dotenv import load_dotenv
-from typing import Optional
+from pathlib import Path
 
 
 class OpenAISummarizerAgent:
@@ -26,15 +27,15 @@ class OpenAISummarizerAgent:
         :return: Summary text or None if an error occurred
         """
         if not self.is_openai_runtime:
-            self.logger.info("Runtime flag is False. Skipping actual OpenAI API call.")
-            return "Mocked response: Hello! (runtime off)"
+            self.logger.info("OpenAI runtime is OFF. Returning raw transcription as summary.")
+            return transcription
 
         try:
             self.logger.info("Making a call to the OpenAI API...")
             response = openai.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": "You are a summary assistant."},
+                    {"role": "system", "content": "You are a summary assistant. Write a summary of concatenated transcribed audio chunks. Don't forget new lines."},
                     {"role": "user", "content": f"Summarize this: {transcription}"}
                 ]
             )
