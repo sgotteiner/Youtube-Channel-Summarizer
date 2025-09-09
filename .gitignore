@@ -4,6 +4,4 @@ channel_*
 vosk*
 *.wav
 .env
-.qwen
-QWEN.md
 *.log
