@@ -36,7 +36,6 @@ class OpenAISummarizerAgent:
 
     def _setup_api(self):
         """Loads the OpenAI API key from environment variables."""
-        load_dotenv()
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("API key not found. Make sure you have a .env file with your OPENAI_API_KEY.")
