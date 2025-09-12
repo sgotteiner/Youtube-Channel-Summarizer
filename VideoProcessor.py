@@ -5,19 +5,17 @@ import os
 from pathlib import Path
 import logging
 from typing import Dict
-from ChannelVideoDownloader import VideoDownloader
+from VideoDownloader import VideoDownloader
 from AudioTranscriber import AudioTranscriber, AudioExtractor
 from AgentSummarizer import OpenAISummarizerAgent
-from yt_dlp import YoutubeDL
 from FileManager import FileManager
 
 class VideoProcessor:
     """
     Orchestrates the processing of a single video.
     """
-    def __init__(self, video_data: dict, paths: dict, services: dict, is_save_only_summaries: bool, logger: logging.Logger):
+    def __init__(self, video_data: dict, services: dict, is_save_only_summaries: bool, logger: logging.Logger):
         self.video_data = video_data
-        self.paths = paths
         self.services = services
         self.is_save_only_summaries = is_save_only_summaries
         self.logger = logger
@@ -28,16 +26,13 @@ class VideoProcessor:
         self.upload_date = self.video_data["upload_date"]
         self.has_captions = self.video_data["has_captions"]
 
-        # Use the centralized FileManager for consistent naming
-        self.base_filename = FileManager.get_base_filename(self.video_data)
-        self._prepare_paths()
-
-    def _prepare_paths(self):
-        """Constructs the full paths for all files related to this video."""
-        self.video_path = self.paths['videos'] / f"{self.base_filename}.mp4"
-        self.audio_path = self.paths['audios'] / f"{self.base_filename}.wav"
-        self.transcription_path = self.paths['transcriptions'] / f"{self.base_filename}.txt"
-        self.summary_path = self.paths['summaries'] / f"{self.base_filename}.txt"
+        # Get all video-specific paths from the FileManager
+        file_manager: FileManager = self.services['file_manager']
+        self.video_paths = file_manager.get_video_paths(self.video_data)
+        self.video_path = self.video_paths["video"]
+        self.audio_path = self.video_paths["audio"]
+        self.transcription_path = self.video_paths["transcription"]
+        self.summary_path = self.video_paths["summary"]
 
     def process(self):
         """Main entry point to start the processing of the video."""
@@ -45,9 +40,14 @@ class VideoProcessor:
         
         transcription_text = self._get_transcription()
         if transcription_text:
-            self._summarize_and_cleanup(transcription_text)
+            summary_text = self._summarize_transcription(transcription_text)
+            if summary_text and self.is_save_only_summaries:
+                self.logger.info("Step 3: Cleaning up intermediate files...")
+                file_manager: FileManager = self.services['file_manager']
+                file_manager.cleanup_intermediate_files(self.video_paths)
         else:
             self.logger.warning(f"Could not obtain transcription for '{self.video_title}'. Skipping summarization.")
+        
         self.logger.info(f"--- Finished processing for video: '{self.video_title}' ---")
 
     def _get_transcription(self) -> str | None:
@@ -61,7 +61,7 @@ class VideoProcessor:
 
         if self.has_captions:
             self.logger.info("Video has captions. Attempting to download them.")
-            transcription = self._download_captions()
+            transcription = self._download_and_process_captions()
             if transcription:
                 self.logger.info("Successfully downloaded and processed captions.")
                 return transcription
@@ -71,33 +71,26 @@ class VideoProcessor:
 
         return self._transcribe_audio_from_video()
 
-    def _download_captions(self) -> str | None:
-        """Downloads and processes captions for the video using yt-dlp."""
-        ydl_opts = {
-            "skip_download": True, "subtitleslangs": ["en"], "subtitlesformat": "vtt",
-            "quiet": True, "outtmpl": str(self.transcription_path.parent / self.video_id) + ".%(ext)s",
-        }
-        try:
-            with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(self.video_url, download=False)
-                lang = "en"
-                if info.get("subtitles", {}).get(lang):
-                    ydl_opts["writesubtitles"] = True
-                elif info.get("automatic_captions", {}).get(lang):
-                    ydl_opts["writeautomaticsub"] = True
-                else:
-                    return None
+    def _download_and_process_captions(self) -> str | None:
+        """Downloads, processes, and cleans captions for the video."""
+        video_downloader: VideoDownloader = self.services['video_downloader']
+        file_manager: FileManager = self.services['file_manager']
+        
+        raw_caption_path = video_downloader.download_captions(self.video_id, file_manager.paths['transcriptions'])
+        
+        if raw_caption_path and raw_caption_path.exists():
+            try:
+                self.logger.info(f"Processing VTT file: {raw_caption_path}")
+                text = self._process_vtt_file(raw_caption_path)
                 
-                ydl.download([self.video_url])
-                raw_subtitle_path = self.transcription_path.parent / f"{self.video_id}.{lang}.vtt"
+                self.transcription_path.write_text(text, encoding="utf-8")
+                self.logger.info(f"Cleaned transcription saved to: {self.transcription_path}")
                 
-                if raw_subtitle_path.exists():
-                    text = self._process_vtt_file(raw_subtitle_path)
-                    self.transcription_path.write_text(text, encoding="utf-8")
-                    os.remove(raw_subtitle_path)
-                    return text
-        except Exception as e:
-            self.logger.error(f"Error during subtitle download for '{self.video_title}': {e}")
+                return text
+            finally:
+                os.remove(raw_caption_path)
+                self.logger.info(f"Deleted raw VTT file: {raw_caption_path}")
+        
         return None
 
     def _process_vtt_file(self, vtt_path: Path) -> str:
@@ -115,10 +108,11 @@ class VideoProcessor:
         video_downloader: VideoDownloader = self.services['video_downloader']
         audio_extractor: AudioExtractor = self.services['audio_extractor']
         audio_transcriber: AudioTranscriber = self.services['audio_transcriber']
+        file_manager: FileManager = self.services['file_manager']
 
         if not self.video_path.exists():
             self.logger.info(f"Downloading video to: {self.video_path}")
-            video_downloader.download_video(self.video_url, self.video_title, self.upload_date, self.video_id, self.paths['videos'])
+            video_downloader.download_video(self.video_url, self.video_title, self.upload_date, self.video_id, file_manager.paths['videos'])
         if not self.video_path.exists():
             self.logger.error("Video download failed. Cannot transcribe.")
             return None
@@ -137,8 +131,8 @@ class VideoProcessor:
             self.transcription_path.write_text(transcription, encoding="utf-8")
         return transcription
 
-    def _summarize_and_cleanup(self, transcription_text: str):
-        """Generates a summary and optionally cleans up intermediate files."""
+    def _summarize_transcription(self, transcription_text: str) -> str | None:
+        """Generates and saves a summary for the given transcription."""
         self.logger.info("Step 2: Summarizing transcription...")
         summarizer: OpenAISummarizerAgent = self.services['summarizer']
         
@@ -146,18 +140,7 @@ class VideoProcessor:
         if summary:
             self.summary_path.write_text(summary, encoding="utf-8")
             self.logger.info(f"Summarization complete. Summary saved to: {self.summary_path}")
-            if self.is_save_only_summaries:
-                self.logger.info("Step 3: Cleaning up intermediate files...")
-                self._cleanup_intermediate_files()
-        else:
-            self.logger.error(f"Summarization failed for '{self.video_title}'.")
-
-    def _cleanup_intermediate_files(self):
-        """Deletes the video, audio, and transcription files for the video."""
-        for file_path in [self.video_path, self.audio_path, self.transcription_path]:
-            if file_path.exists():
-                try:
-                    os.remove(file_path)
-                    self.logger.info(f"Deleted: {file_path}")
-                except Exception as e:
-                    self.logger.error(f"Error deleting {file_path}: {e}")
+            return summary
+        
+        self.logger.error(f"Summarization failed for '{self.video_title}'.")
+        return None

@@ -27,7 +27,9 @@ For a complete breakdown of the architecture, component design, data flow, and d
 -   **Single Responsibility Principle (SRP)**: Every class and function should have one, and only one, reason to change.
     -   `main.py` is for orchestration only. It should not contain business logic, conditional statements, or file manipulation.
     -   Each class should be responsible for a distinct part of the pipeline (e.g., `VideoProcessor`, `AudioTranscriber`).
+-   **Don't Repeat Yourself (DRY)**: Avoid duplicating code. If you find the same logic implemented in multiple places, refactor it into a single, reusable function or class. This makes the code easier to maintain, as changes only need to be made in one location.
 -   **Function Length**: Aim to keep functions concise. As a general guideline, a function's core logic should not exceed **10-15 lines** (excluding comments, docstrings, and logging statements). If a function is longer, consider breaking it down into smaller helper functions.
+-   **File and Class Granularity**: Keep files focused and small. If a file contains multiple classes that can be logically separated, it is preferable to split them into their own files. This improves maintainability and makes the codebase easier for developers and AI-based coding tools to navigate, as it reduces the amount of context needed to understand any single file.
 
 ### **Important**: Preserving Manual Edits
 -   If a function or block of code is preceded by a comment containing `NO AI EDITS`, it must not be altered in any way. This indicates a specific, intentional implementation that should be preserved.

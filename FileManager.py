@@ -5,6 +5,7 @@ This class is responsible for generating standardized filenames and checking for
 the existence of files, particularly summaries. This centralizes file management
 logic and ensures consistency across the application.
 """
+import os
 import re
 from pathlib import Path
 from typing import Dict
@@ -13,17 +14,19 @@ class FileManager:
     """
     Manages file naming conventions, directory structures, and checks for existing files.
     """
-    def __init__(self, channel_name: str, is_openai_runtime: bool):
+    def __init__(self, channel_name: str, is_openai_runtime: bool, logger):
         """
         Initializes the FileManager and creates the necessary directory structure.
 
         Args:
             channel_name (str): The name of the YouTube channel.
             is_openai_runtime (bool): Flag to determine if experimental directories should be used.
+            logger: The logger instance for logging messages.
         """
         self.channel_name = channel_name
         self.paths = self._setup_directories(channel_name, is_openai_runtime)
         self.summaries_dir = self.paths['summaries']
+        self.logger = logger
 
     def _setup_directories(self, channel_name: str, is_openai_runtime: bool) -> Dict[str, Path]:
         """Creates and returns paths for the required directories."""
@@ -64,6 +67,24 @@ class FileManager:
         sanitized_title = FileManager._sanitize_filename(video_data["video_title"])
         return f"{sanitized_title}-{video_data['upload_date']}-{video_data['video_id']}"
 
+    def get_video_paths(self, video_data: Dict) -> Dict[str, Path]:
+        """
+        Constructs a dictionary of all required file paths for a single video.
+
+        Args:
+            video_data (Dict): A dictionary containing the video's metadata.
+
+        Returns:
+            Dict[str, Path]: A dictionary mapping path types to their full Path objects.
+        """
+        base_filename = self.get_base_filename(video_data)
+        return {
+            "video": self.paths['videos'] / f"{base_filename}.mp4",
+            "audio": self.paths['audios'] / f"{base_filename}.wav",
+            "transcription": self.paths['transcriptions'] / f"{base_filename}.txt",
+            "summary": self.paths['summaries'] / f"{base_filename}.txt",
+        }
+
     def does_summary_exist(self, video_id: str) -> bool:
         """
         Checks if a summary file for a given video ID already exists.
@@ -77,3 +98,22 @@ class FileManager:
         """
         pattern = f"*-{video_id}.txt"
         return any(self.summaries_dir.glob(pattern))
+
+    def cleanup_intermediate_files(self, video_paths: Dict[str, Path]):
+        """
+        Deletes the video, audio, and transcription files for a video.
+
+        Args:
+            video_paths (Dict[str, Path]): A dictionary containing the paths to the video's files.
+        """
+        # We don't want to delete the summary, so we exclude it from the list of files to delete.
+        for file_type, file_path in video_paths.items():
+            if file_type == "summary":
+                continue
+            
+            if file_path.exists():
+                try:
+                    os.remove(file_path)
+                    self.logger.info(f"Deleted intermediate file: {file_path}")
+                except Exception as e:
+                    self.logger.error(f"Error deleting file {file_path}: {e}")

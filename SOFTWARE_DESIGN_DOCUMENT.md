@@ -26,7 +26,9 @@ To enhance performance, the application processes multiple videos in parallel. I
 
 #### **2.3. Component Overview**
 *   **`main.py` (Orchestrator)**: The entry point of the application. It handles configuration, sets up the directory structure, initializes all service modules, and manages the thread pool for concurrent video processing.
-*   **`ChannelVideoDownloader` (Discoverer)**: Responsible for identifying which videos need to be processed. It fetches video metadata from YouTube and filters them based on program parameters and whether they have already been summarized.
+*   **`VideoDiscoverer` (Discoverer)**: Responsible for the high-level logic of identifying which videos need to be processed. It uses the `VideoMetadataFetcher` and `FileManager` to filter videos based on program parameters and summary existence.
+*   **`VideoMetadataFetcher` (Data Access)**: A focused client for `yt-dlp`. Its sole responsibility is to fetch both lightweight and detailed video metadata from YouTube.
+*   **`VideoDownloader` (Utility)**: A utility class responsible for all file downloads. It handles downloading the main video files (MP4s) and video captions (VTTs).
 *   **`VideoProcessor` (Worker)**: The core component that executes the entire processing pipeline for a *single* video. It orchestrates the transcription and summarization stages.
 *   **`AudioTranscriber` / `AudioExtractor` (Transcription Services)**: These modules handle the "manual" transcription fallback. `AudioExtractor` pulls the audio from a video file, and `AudioTranscriber` converts that audio into text.
 *   **`AgentSummarizer` (AI Service)**: A client for the OpenAI API. It takes a text transcription and returns a generated summary, handling complexities like text chunking for long inputs.
@@ -38,17 +40,17 @@ To enhance performance, the application processes multiple videos in parallel. I
 [Start]
    |
    v
-[main.py: Read Config (channel_name, num_videos, etc.)]
+[main.py: Read Config, Initialize Services]
    |
    v
-[ChannelVideoDownloader: discover_videos]
+[VideoDiscoverer: discover_videos]
    |
-   | 1. Fetch lightweight video list (IDs, titles) from YouTube channel.
+   | 1. [VideoMetadataFetcher: get_video_entries] -> Get lightweight list of all video IDs.
    | 2. For each video ID:
    |    - [FileManager: does_summary_exist?] -> (Skip if True)
    | 3. For remaining videos:
-   |    - Fetch full metadata (duration, has_captions).
-   |    - Apply filters (max_video_length if no captions).
+   |    - [VideoMetadataFetcher: fetch_video_details] -> Get full metadata.
+   |    - Apply filters (max_video_length, etc.).
    |
    v
 [List of valid videos to process]
@@ -64,7 +66,7 @@ To enhance performance, the application processes multiple videos in parallel. I
 [VideoProcessor: _get_transcription]
    |
    | 1. Check if video `has_captions`.
-   |    - (If True) -> [Download Captions (VTT)] -> [Process VTT to clean text]
+   |    - (If True) -> [VideoDownloader: download_captions] -> [Process VTT to clean text]
    |    - (If False or Caption Download Fails) -> Fallback:
    |        a. [VideoDownloader: download_video]
    |        b. [AudioExtractor: extract_audio]
@@ -99,64 +101,74 @@ To enhance performance, the application processes multiple videos in parallel. I
 
 #### **3.1. `main.py` - Orchestrator**
 *   **Responsibilities**:
-    *   Define and manage application-level configuration parameters (`channel_name`, `num_videos_to_process`, `max_video_length`, `is_openai_runtime`, `is_save_only_summaries`).
-    *   Set up the required directory structure using `setup_directories`.
-    *   Initialize all service classes (`VideoDownloader`, `AudioTranscriber`, etc.) and the central logger.
-    *   Instantiate `ChannelVideoDownloader` to discover videos.
+    *   Define and manage application-level configuration parameters.
+    *   Set up the required directory structure.
+    *   Initialize all service classes (`VideoMetadataFetcher`, `VideoDiscoverer`, `VideoDownloader`, etc.).
+    *   Instantiate `VideoDiscoverer` to find videos.
     *   Create and manage a `ThreadPoolExecutor` to distribute `VideoProcessor` tasks.
-    *   Wait for all tasks to complete and log any exceptions that arise from the threads.
+    *   Wait for all tasks to complete and log any exceptions.
 *   **Key Logic**:
-    *   **Experimental Mode**: If `is_openai_runtime` is `False`, it modifies the summaries path to point to an `experimental` subdirectory to prevent mixing test outputs with real summaries.
+    *   **Experimental Mode**: If `is_openai_runtime` is `False`, it modifies the summaries path to point to an `experimental` subdirectory.
 
-#### **3.2. `ChannelVideoDownloader` - Discoverer**
+#### **3.2. `VideoDiscoverer` - Discoverer**
 *   **Responsibilities**:
-    *   Fetch a list of all videos from a channel.
-    *   Filter out videos that have already been summarized.
-    *   Apply program parameters to produce a final list of videos to process.
+    *   Orchestrate the discovery of new videos to be processed.
+    *   Filter videos based on whether a summary already exists.
+    *   Validate videos against program parameters like maximum length.
 *   **Key Methods & Logic**:
-    *   `discover_videos()`: The main entry point. It orchestrates the discovery process in an optimized order:
-        1.  Calls `_get_video_entries()` for a fast, lightweight list of all videos.
-        2.  Iterates through this list. For each video, it first calls `FileManager.does_summary_exist()`. If a summary exists, the video is skipped immediately.
-        3.  If no summary exists, it calls `_fetch_video_details()` to get full metadata.
-        4.  It then validates the video with `_is_video_valid()`.
-        5.  If valid, the video is added to the `videos_to_process` list.
-        6.  The loop breaks as soon as the list size reaches `num_videos_to_process`. This ensures it continues searching past already-summarized videos to find the required number of *new* videos.
-    *   `_is_video_valid()`: Contains the crucial filtering logic. It checks the video's duration against `max_video_length`. The check can be configured to apply to all videos or only to videos without captions, providing flexible control over which videos are processed based on their length.
+    *   `discover_videos()`: The main entry point. It gets a lightweight list of video entries from the `VideoMetadataFetcher`. It then iterates through them, using the `FileManager` to check for existing summaries and the `VideoMetadataFetcher` to get full details for new videos before validating them.
+    *   `_is_video_valid()`: Contains the filtering logic to check a video's duration against the configured `max_video_length`.
 
-#### **3.3. `VideoProcessor` - Worker**
+#### **3.3. `VideoMetadataFetcher` - Data Access**
+*   **Responsibilities**:
+    *   Act as the sole interface to `yt-dlp` for fetching metadata.
+    *   Retrieve a lightweight list of all video entries for a channel.
+    *   Fetch full, detailed metadata for a single video ID.
+*   **Key Methods & Logic**:
+    *   `get_video_entries()`: Uses `yt-dlp` with the `extract_flat` option to quickly get a list of all video IDs and titles.
+    *   `fetch_video_details()`: Uses `yt-dlp` to get a rich metadata object for a single video, including duration, upload date, and caption availability.
+    *   `_parse_video_info()`: A private helper to transform the raw `yt-dlp` dictionary into the application's standard `video_data` format.
+
+#### **3.4. `VideoDownloader` - Downloader Utility**
+*   **Responsibilities**:
+    *   Handle all file downloads from YouTube.
+*   **Key Methods & Logic**:
+    *   `download_video()`: Downloads the full MP4 video file for a given URL using `pytubefix`.
+    *   `download_captions()`: Downloads the English VTT caption file for a given video ID using `yt-dlp`.
+
+#### **3.5. `VideoProcessor` - Worker**
 *   **Responsibilities**:
     *   Manage the end-to-end processing pipeline for a single video.
     *   Obtain the video's transcription using the most efficient method available.
     *   Invoke the summarizer with the transcription.
-    *   Save the final summary.
-    *   Clean up intermediate files.
+    *   Save the final summary and clean up intermediate files.
 *   **Key Methods & Logic**:
     *   `process()`: The main public method that executes the entire workflow.
-    *   `_get_transcription()`: Implements the caption-first strategy. It first attempts to download captions. If that fails or is not possible, it logs a warning and calls `_transcribe_audio_from_video` as a graceful fallback.
-    *   `_transcribe_audio_from_video()`: Manages the full manual transcription pipeline, checking for existing files at each step (video -> audio -> transcription) to make the process resumable if it was previously interrupted.
+    *   `_get_transcription()`: Implements the caption-first strategy. It calls the `VideoDownloader` service to get captions. If that fails, it falls back to the manual audio transcription pipeline.
+    *   `_transcribe_audio_from_video()`: Manages the fallback process: `VideoDownloader` -> `AudioExtractor` -> `AudioTranscriber`. It checks for existing files at each step to make the process resumable.
 
-#### **3.4. `AudioTranscriber` - Speech-to-Text Service**
+#### **3.6. `AudioTranscriber` - Speech-to-Text Service**
 *   **Responsibilities**:
     *   Transcribe a given audio file into text.
 *   **Key Methods & Logic**:
-    *   `transcribe_audio()`: Takes an audio file path. It uses the `pydub` library to load the audio and splits it into 10-second chunks to avoid API limits and timeouts.
-    *   `_transcribe_chunk()`: It processes each chunk individually using the `speech_recognition` library. It includes error handling for chunks that are unintelligible (`sr.UnknownValueError`) or fail due to API issues, inserting a placeholder like `[unintelligible]` without failing the entire transcription.
+    *   `transcribe_audio()`: Uses `pydub` to split a long audio file into manageable chunks.
+    *   `_transcribe_chunk()`: Processes each chunk with the `speech_recognition` library, with error handling for unintelligible audio.
 
-#### **3.5. `AgentSummarizer` - AI Service Client**
+#### **3.7. `AgentSummarizer` - AI Service Client**
 *   **Responsibilities**:
     *   Interface with the OpenAI API to generate summaries.
     *   Handle text that is too long for the model's context window.
 *   **Key Methods & Logic**:
-    *   `summary_call()`: The main public method. It checks if `is_openai_runtime` is `True`. If not, it returns the raw transcription for testing purposes. Otherwise, it calls `_recursive_summarize`.
-    *   `_recursive_summarize()`: This method uses `tiktoken` to check the transcription's token count. If it exceeds the `CHUNK_TARGET_SIZE`, it splits the text into chunks, calls `_summarize_text` on each (with a prompt indicating it's a partial text), and then recursively calls itself on the combined summaries until the text is small enough to be summarized in a single API call.
+    *   `summary_call()`: The main public method. Returns the raw transcription if `is_openai_runtime` is `False`.
+    *   `_recursive_summarize()`: Uses `tiktoken` to check the transcription's token count. If it's too long, it splits the text, summarizes the chunks, and recursively calls itself on the combined summaries.
 
-#### **3.6. `FileManager` - File System Utility**
+#### **3.8. `FileManager` - File System Utility**
 *   **Responsibilities**:
     *   Provide standardized filenames.
     *   Check for the existence of summary files.
 *   **Key Methods & Logic**:
-    *   `get_base_filename()`: Creates the standard `SanitizedTitle-DD_MM_YYYY-VideoID` filename string. It uses a static `_sanitize_filename` method to remove characters that are illegal in file paths.
-    *   `does_summary_exist()`: Takes a `video_id` and uses `pathlib.Path.glob` with the pattern `*-{video_id}.txt`. This is a highly efficient way to check for existence without needing to know the full title or date.
+    *   `get_base_filename()`: Creates the standard `SanitizedTitle-DD_MM_YYYY-VideoID` filename string.
+    *   `does_summary_exist()`: Uses `pathlib.Path.glob` with a `*-{video_id}.txt` pattern for efficient existence checks.
 
 ---
 
