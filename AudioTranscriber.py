@@ -1,13 +1,11 @@
 """
-Module for audio transcription and extraction from video files.
+Module for audio transcription from audio files.
 
-This module provides two classes:
+This module provides the following class:
 -   AudioTranscriber: Transcribes audio files to text using speech recognition.
--   AudioExtractor: Extracts the audio track from a video file.
 """
 import os
 import speech_recognition as sr
-from moviepy.editor import VideoFileClip
 from pydub import AudioSegment
 from pathlib import Path
 import logging

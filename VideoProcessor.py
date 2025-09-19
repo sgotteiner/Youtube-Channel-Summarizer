@@ -7,17 +7,15 @@ import logging
 from typing import Dict
 from VideoDownloader import VideoDownloader
 from AudioTranscriber import AudioTranscriber, AudioExtractor
-from AgentSummarizer import OpenAISummarizerAgent
 from FileManager import FileManager
 
 class VideoProcessor:
     """
     Orchestrates the processing of a single video.
     """
-    def __init__(self, video_data: dict, services: dict, is_save_only_summaries: bool, logger: logging.Logger):
+    def __init__(self, video_data: dict, services: dict, logger: logging.Logger):
         self.video_data = video_data
         self.services = services
-        self.is_save_only_summaries = is_save_only_summaries
         self.logger = logger
 
         self.video_url = self.video_data["video_url"]
@@ -34,21 +32,17 @@ class VideoProcessor:
         self.transcription_path = self.video_paths["transcription"]
         self.summary_path = self.video_paths["summary"]
 
-    def process(self):
+    def process(self) -> str | None:
         """Main entry point to start the processing of the video."""
         self.logger.info(f"--- Starting processing for video: '{self.video_title}' ---")
         
         transcription_text = self._get_transcription()
-        if transcription_text:
-            summary_text = self._summarize_transcription(transcription_text)
-            if summary_text and self.is_save_only_summaries:
-                self.logger.info("Step 3: Cleaning up intermediate files...")
-                file_manager: FileManager = self.services['file_manager']
-                file_manager.cleanup_intermediate_files(self.video_paths)
-        else:
-            self.logger.warning(f"Could not obtain transcription for '{self.video_title}'. Skipping summarization.")
+        if not transcription_text:
+            self.logger.warning(f"Could not obtain transcription for '{self.video_title}'.")
+            return None
         
         self.logger.info(f"--- Finished processing for video: '{self.video_title}' ---")
+        return transcription_text
 
     def _get_transcription(self) -> str | None:
         """
@@ -69,7 +63,7 @@ class VideoProcessor:
         else:
             self.logger.info("Video has no captions. Proceeding with audio transcription.")
 
-        return self._transcribe_audio_from_video()
+        return self._transcribe_video_manually()
 
     def _download_and_process_captions(self) -> str | None:
         """Downloads, processes, and cleans captions for the video."""
@@ -102,45 +96,43 @@ class VideoProcessor:
         ]
         return " ".join(cleaned_lines)
 
-    def _transcribe_audio_from_video(self) -> str | None:
-        """Manages the full audio transcription pipeline: download -> extract -> transcribe."""
-        self.logger.info("Fallback pipeline: Transcribing from audio.")
-        video_downloader: VideoDownloader = self.services['video_downloader']
-        audio_extractor: AudioExtractor = self.services['audio_extractor']
-        audio_transcriber: AudioTranscriber = self.services['audio_transcriber']
-        file_manager: FileManager = self.services['file_manager']
-
+    def _download_video(self) -> bool:
+        """Downloads the video if it doesn't already exist."""
         if not self.video_path.exists():
             self.logger.info(f"Downloading video to: {self.video_path}")
+            video_downloader: VideoDownloader = self.services['video_downloader']
+            file_manager: FileManager = self.services['file_manager']
             video_downloader.download_video(self.video_url, self.video_title, self.upload_date, self.video_id, file_manager.paths['videos'])
-        if not self.video_path.exists():
-            self.logger.error("Video download failed. Cannot transcribe.")
-            return None
+        return self.video_path.exists()
 
+    def _extract_audio(self) -> bool:
+        """Extracts audio from the video if it doesn't already exist."""
         if not self.audio_path.exists():
             self.logger.info(f"Extracting audio to: {self.audio_path}")
+            audio_extractor: AudioExtractor = self.services['audio_extractor']
             audio_extractor.extract_audio(self.video_path, self.audio_path)
-        if not self.audio_path.exists():
-            self.logger.error("Audio extraction failed. Cannot transcribe.")
-            return None
-            
+        return self.audio_path.exists()
+
+    def _transcribe_audio(self) -> str | None:
+        """Transcribes the audio file."""
         self.logger.info(f"Transcribing audio file: {self.audio_path}")
+        audio_transcriber: AudioTranscriber = self.services['audio_transcriber']
         transcription = audio_transcriber.transcribe_audio(self.audio_path)
         if transcription:
             self.logger.info("Transcription successful. Saving to file.")
             self.transcription_path.write_text(transcription, encoding="utf-8")
         return transcription
 
-    def _summarize_transcription(self, transcription_text: str) -> str | None:
-        """Generates and saves a summary for the given transcription."""
-        self.logger.info("Step 2: Summarizing transcription...")
-        summarizer: OpenAISummarizerAgent = self.services['summarizer']
-        
-        summary = summarizer.summary_call(transcription_text)
-        if summary:
-            self.summary_path.write_text(summary, encoding="utf-8")
-            self.logger.info(f"Summarization complete. Summary saved to: {self.summary_path}")
-            return summary
-        
-        self.logger.error(f"Summarization failed for '{self.video_title}'.")
-        return None
+    def _transcribe_video_manually(self) -> str | None:
+        """Manages the full audio transcription pipeline: download video -> extract audio -> transcribe."""
+        self.logger.info("Fallback pipeline: Transcribing from audio.")
+
+        if not self._download_video():
+            self.logger.error("Video download failed. Cannot transcribe.")
+            return None
+
+        if not self._extract_audio():
+            self.logger.error("Audio extraction failed. Cannot transcribe.")
+            return None
+            
+        return self._transcribe_audio()

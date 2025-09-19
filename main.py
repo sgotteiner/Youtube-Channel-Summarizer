@@ -4,7 +4,8 @@ Main orchestrator for the YouTube Channel Summarizer pipeline.
 import concurrent.futures
 import logging
 from VideoDownloader import VideoDownloader
-from AudioTranscriber import AudioTranscriber, AudioExtractor
+from AudioTranscriber import AudioTranscriber
+from AudioExtractor import AudioExtractor
 from AgentSummarizer import OpenAISummarizerAgent
 from logger import Logger
 from VideoProcessor import VideoProcessor
@@ -22,6 +23,36 @@ def initialize_services(logger: logging.Logger, file_manager: FileManager, is_op
         'audio_transcriber': AudioTranscriber(logger),
         'summarizer': OpenAISummarizerAgent(is_openai_runtime, logger),
     }
+
+def process_video_wrapper(video_data: dict, services: dict, config: Config, logger: logging.Logger):
+    """
+    Wrapper function to process a single video, summarize it, and clean up.
+    This function is submitted to the ThreadPoolExecutor.
+    """
+    video_processor = VideoProcessor(video_data, services, logger)
+    transcription_text = video_processor.process()
+
+    if not transcription_text:
+        return
+
+    logger.info(f"Step 2: Summarizing transcription for '{video_data['video_title']}'...")
+    summarizer: OpenAISummarizerAgent = services['summarizer']
+    summary_text = summarizer.summary_call(transcription_text)
+
+    if not summary_text:
+        logger.error(f"Summarization failed for '{video_data['video_title']}'.")
+        return
+
+    file_manager: FileManager = services['file_manager']
+    video_paths = file_manager.get_video_paths(video_data)
+    summary_path = video_paths["summary"]
+    
+    summary_path.write_text(summary_text, encoding="utf-8")
+    logger.info(f"Summarization complete. Summary saved to: {summary_path}")
+
+    if config.is_save_only_summaries:
+        logger.info(f"Step 3: Cleaning up intermediate files for '{video_data['video_title']}'...")
+        file_manager.cleanup_intermediate_files(video_paths)
 
 def main():
     """Main function to execute the YouTube Channel Summarizer pipeline."""
@@ -55,7 +86,7 @@ def main():
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         futures = [
             executor.submit(
-                VideoProcessor(video_data, services, config.is_save_only_summaries, logger).process
+                process_video_wrapper, video_data, services, config, logger
             )
             for video_data in videos_to_process
         ]

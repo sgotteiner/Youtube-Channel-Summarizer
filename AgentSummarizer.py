@@ -4,7 +4,6 @@ Module for summarizing text using OpenAI's API.
 import os
 from typing import Optional, List
 import openai
-from dotenv import load_dotenv
 import tiktoken
 import logging
 
