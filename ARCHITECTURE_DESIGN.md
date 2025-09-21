@@ -22,7 +22,13 @@ The YouTube Channel Summarizer is a Python application that operates as a pipeli
 The system employs a **modular, pipeline-driven architecture**. Each distinct responsibility (e.g., downloading, transcribing, summarizing) is encapsulated within its own class. A central orchestrator (`main.py`) initializes these components and manages the overall workflow, passing data from one stage to the next.
 
 #### **2.2. Concurrency Model**
-To enhance performance, the application processes multiple videos in parallel. It uses a **`concurrent.futures.ThreadPoolExecutor`** to manage a pool of worker threads. Each thread is assigned a single video to process, executing the entire pipeline for that video independently. This allows I/O-bound tasks like downloading and API calls for different videos to occur simultaneously.
+To enhance performance and scalability for I/O-bound operations, the application uses a **hybrid `asyncio` and `ThreadPoolExecutor` model**.
+
+*   **`asyncio` Event Loop**: The core of the application runs on a single-threaded `asyncio` event loop. This allows the program to handle tens of thousands of concurrent I/O operations (like API calls to YouTube and OpenAI) with very low overhead. All native I/O-bound tasks are implemented as `async` coroutines.
+
+*   **`ThreadPoolExecutor` for Blocking Code**: For operations that are inherently blocking or CPU-bound (such as audio transcription with `SpeechRecognition` or synchronous file I/O from libraries like `yt-dlp`), a single `ThreadPoolExecutor` is used. The `asyncio` event loop delegates these blocking tasks to the thread pool using `loop.run_in_executor()`. This prevents the CPU-bound work from stalling the event loop, allowing I/O-bound tasks to continue running in parallel.
+
+This hybrid approach provides the high scalability of `asyncio` for network requests while safely handling legacy or CPU-intensive synchronous code in a separate thread pool, offering the best of both worlds.
 
 #### **2.3. Component Overview**
 *   **`main.py` (Orchestrator)**: The entry point of the application. It handles configuration, sets up the directory structure, initializes all service modules, and manages the thread pool for concurrent video processing.

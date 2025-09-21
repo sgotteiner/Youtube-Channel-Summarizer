@@ -18,7 +18,7 @@ class Logger:
         handler.setLevel(level)
 
         # Create a logging format
-        formatter = logging.Formatter('%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter('%(asctime)s.%(msecs)03d - %(threadName)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
 
         # Add the handlers to the logger

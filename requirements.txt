@@ -13,3 +13,6 @@ pydub
 openai
 python-dotenv
 tiktoken
+
+# Used for async file operations
+aiofiles
