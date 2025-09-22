@@ -31,10 +31,10 @@ class FileManager:
     def _setup_directories(self, channel_name: str, is_openai_runtime: bool) -> Dict[str, Path]:
         """Creates and returns paths for the required directories."""
         base_paths = {
-            'videos': Path(f'./channel_videos/{channel_name}'),
-            'audios': Path(f'./channel_audios/{channel_name}'),
-            'transcriptions': Path(f'./channel_transcriptions/{channel_name}'),
-            'summaries': Path(f'./channel_summaries/{channel_name}'),
+            'videos': Path(f'./data/channel_videos/{channel_name}'),
+            'audios': Path(f'./data/channel_audios/{channel_name}'),
+            'transcriptions': Path(f'./data/channel_transcriptions/{channel_name}'),
+            'summaries': Path(f'./data/channel_summaries/{channel_name}'),
         }
         for path in base_paths.values():
             path.mkdir(parents=True, exist_ok=True)

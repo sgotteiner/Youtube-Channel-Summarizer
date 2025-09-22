@@ -8,10 +8,10 @@ import logging
 from typing import Dict
 from concurrent.futures import ThreadPoolExecutor
 import aiofiles
-from VideoDownloader import VideoDownloader
-from AudioTranscriber import AudioTranscriber
-from AudioExtractor import AudioExtractor
-from FileManager import FileManager
+from .VideoDownloader import VideoDownloader
+from .AudioTranscriber import AudioTranscriber
+from .AudioExtractor import AudioExtractor
+from ..utils.file_manager import FileManager
 
 class VideoProcessor:
     """

@@ -4,16 +4,16 @@ Main orchestrator for the YouTube Channel Summarizer pipeline.
 import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from VideoDownloader import VideoDownloader
-from AudioTranscriber import AudioTranscriber
-from AudioExtractor import AudioExtractor
-from AgentSummarizer import OpenAISummarizerAgent
-from logger import Logger
-from VideoProcessor import VideoProcessor
-from FileManager import FileManager
-from config import Config
-from VideoMetadataFetcher import VideoMetadataFetcher
-from VideoDiscoverer import VideoDiscoverer
+from pipeline.VideoDownloader import VideoDownloader
+from pipeline.AudioTranscriber import AudioTranscriber
+from pipeline.AudioExtractor import AudioExtractor
+from pipeline.AgentSummarizer import OpenAISummarizerAgent
+from utils.logger import Logger
+from pipeline.VideoProcessor import VideoProcessor
+from utils.file_manager import FileManager
+from utils.config import Config
+from pipeline.VideoMetadataFetcher import VideoMetadataFetcher
+from pipeline.VideoDiscoverer import VideoDiscoverer
 import aiofiles
 
 def initialize_services(logger: logging.Logger, file_manager: FileManager, is_openai_runtime: bool) -> dict:
