@@ -16,4 +16,6 @@ tiktoken
 
 # Used for async file operations
 aiofiles
-aiofiles 
+
+# Used for code linting
+pylint
