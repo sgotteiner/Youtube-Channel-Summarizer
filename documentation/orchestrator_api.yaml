@@ -1,0 +1,94 @@
+openapi: 3.0.0
+info:
+  title: Orchestration API
+  description: API for submitting and monitoring YouTube channel summarization jobs.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000
+    description: Local development server
+
+paths:
+  /jobs:
+    post:
+      summary: Create a new summarization job
+      description: Accepts a YouTube channel ID and queues it for processing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel_id:
+                  type: string
+                  description: The ID of the YouTube channel to summarize.
+                  example: "UC_x5XG1OV2P6uZZ5FSM9Ttw"
+                num_videos_to_process:
+                  type: integer
+                  description: The maximum number of recent videos to process.
+                  example: 5
+                max_video_length:
+                  type: integer
+                  description: The maximum video length in minutes.
+                  example: 30
+              required:
+                - channel_id
+      responses:
+        '202':
+          description: Job accepted for processing.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                    format: uuid
+                    description: A unique identifier for the job.
+                  message:
+                    type: string
+                    example: "Job accepted and queued for processing."
+        '400':
+          description: Bad request, missing channel_id.
+
+  /jobs/{job_id}:
+    get:
+      summary: Get job status and results
+      description: Retrieves the status of a specific job and the videos being processed.
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the job to retrieve.
+      responses:
+        '200':
+          description: Successful response with job status.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                    format: uuid
+                  videos:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        video_id:
+                          type: string
+                        title:
+                          type: string
+                        status:
+                          type: string
+                          enum: [PENDING, DOWNLOADING, DOWNLOADED, AUDIO_EXTRACTED, TRANSCRIBING, TRANSCRIBED, SUMMARIZING, COMPLETED, FAILED]
+                        upload_date:
+                          type: string
+        '404':
+          description: Job not found.
+        '500':
+          description: Failed to retrieve job status.

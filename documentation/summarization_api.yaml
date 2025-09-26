@@ -1,0 +1,42 @@
+openapi: 3.0.0
+info:
+  title: Stateless Summarization API
+  description: API for summarizing raw text on demand.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5005
+    description: Local development server
+
+paths:
+  /summarize-text:
+    post:
+      summary: Summarize raw text
+      description: Accepts a block of text and returns a generated summary. This is a stateless operation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                  description: The text content to be summarized.
+                  example: "The quick brown fox jumps over the lazy dog. This sentence contains all the letters of the alphabet."
+              required:
+                - text
+      responses:
+        '200':
+          description: Summary generated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary:
+                    type: string
+                    description: The generated summary.
+        '400':
+          description: Bad request, missing text.
+        '500':
+          description: Failed to generate summary.

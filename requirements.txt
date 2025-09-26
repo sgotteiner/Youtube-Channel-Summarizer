@@ -19,3 +19,7 @@ aiofiles
 
 # Used for code linting
 pylint
+"pika" 
+"pymongo" 
+"PyYAML" 
+"kafka-python" 

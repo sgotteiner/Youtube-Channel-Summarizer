@@ -7,16 +7,13 @@ from yt_dlp import YoutubeDL
 
 class VideoMetadataFetcher:
     """Fetches video metadata from a YouTube channel efficiently."""
-    def __init__(self, channel_name: str, logger: Optional[logging.Logger] = None):
-        self.channel_name = channel_name
+    def __init__(self, channel_id: str, logger: Optional[logging.Logger] = None):
+        self.channel_id = channel_id
         self.logger = logger
 
     def _get_channel_url(self) -> str:
-        """Converts a channel name or handle into a full YouTube channel URL."""
-        if not self.channel_name.startswith("http"):
-            prefix = '@' if self.channel_name.startswith('@') else 'c/'
-            return f"https://www.youtube.com/{prefix}{self.channel_name.lstrip('@')}"
-        return self.channel_name
+        """Constructs the full YouTube channel URL from a channel ID."""
+        return f"https://www.youtube.com/channel/{self.channel_id}"
 
     def get_video_entries(self) -> List[Dict]:
         """

@@ -14,27 +14,27 @@ class FileManager:
     """
     Manages file naming conventions, directory structures, and checks for existing files.
     """
-    def __init__(self, channel_name: str, is_openai_runtime: bool, logger):
+    def __init__(self, channel_id: str, is_openai_runtime: bool, logger):
         """
         Initializes the FileManager and creates the necessary directory structure.
 
         Args:
-            channel_name (str): The name of the YouTube channel.
+            channel_id (str): The ID of the YouTube channel.
             is_openai_runtime (bool): Flag to determine if experimental directories should be used.
             logger: The logger instance for logging messages.
         """
-        self.channel_name = channel_name
-        self.paths = self._setup_directories(channel_name, is_openai_runtime)
+        self.channel_id = channel_id
+        self.paths = self._setup_directories(channel_id, is_openai_runtime)
         self.summaries_dir = self.paths['summaries']
         self.logger = logger
 
-    def _setup_directories(self, channel_name: str, is_openai_runtime: bool) -> Dict[str, Path]:
+    def _setup_directories(self, channel_id: str, is_openai_runtime: bool) -> Dict[str, Path]:
         """Creates and returns paths for the required directories."""
         base_paths = {
-            'videos': Path(f'./data/channel_videos/{channel_name}'),
-            'audios': Path(f'./data/channel_audios/{channel_name}'),
-            'transcriptions': Path(f'./data/channel_transcriptions/{channel_name}'),
-            'summaries': Path(f'./data/channel_summaries/{channel_name}'),
+            'videos': Path(f'./data/channel_videos/{channel_id}'),
+            'audios': Path(f'./data/channel_audios/{channel_id}'),
+            'transcriptions': Path(f'./data/channel_transcriptions/{channel_id}'),
+            'summaries': Path(f'./data/channel_summaries/{channel_id}'),
         }
         for path in base_paths.values():
             path.mkdir(parents=True, exist_ok=True)
