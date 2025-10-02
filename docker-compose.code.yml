@@ -1,0 +1,123 @@
+version: '3.8'
+
+services:
+  base_code:
+    build:
+      context: .
+      dockerfile: docker/images/base/Dockerfile.base_code
+    image: youtube-channel-summarizer-base-code:latest
+    depends_on:
+      - base_requirements
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: docker/images/services/orchestrator_service/Dockerfile.service_code
+    image: youtube-channel-summarizer-orchestrator-service-code:latest
+    ports:
+      - "5000:5000"
+    depends_on:
+      - base_code
+      - rabbitmq
+      - postgres
+    networks:
+      - youtube-summarizer-net
+
+  discovery_service:
+    build:
+      context: .
+      dockerfile: docker/images/services/discovery_service/Dockerfile.service_code
+    image: youtube-channel-summarizer-discovery-service-code:latest
+    depends_on:
+      - base_code
+      - rabbitmq
+      - postgres
+      - kafka
+    networks:
+      - youtube-summarizer-net
+
+  download_service:
+    build:
+      context: .
+      dockerfile: docker/images/services/download_service/Dockerfile.service_code
+    image: youtube-channel-summarizer-download-service-code:latest
+    depends_on:
+      - download_service_requirements
+      - rabbitmq
+      - postgres
+      - kafka
+    networks:
+      - youtube-summarizer-net
+
+  audio_extraction_service:
+    build:
+      context: .
+      dockerfile: docker/images/services/audio_extraction_service/Dockerfile.service_code
+    image: youtube-channel-summarizer-audio-extraction-service-code:latest
+    depends_on:
+      - audio_extraction_service_requirements
+      - rabbitmq
+      - postgres
+      - kafka
+    networks:
+      - youtube-summarizer-net
+
+  transcription_service:
+    build:
+      context: .
+      dockerfile: docker/images/services/transcription_service/Dockerfile.service_code
+    image: youtube-channel-summarizer-transcription-service-code:latest
+    depends_on:
+      - transcription_service_requirements
+      - rabbitmq
+      - postgres
+      - mongo
+      - kafka
+    networks:
+      - youtube-summarizer-net
+
+  summarization_service:
+    build:
+      context: .
+      dockerfile: docker/images/services/summarization_service/Dockerfile.service_code
+    image: youtube-channel-summarizer-summarization-service-code:latest
+    ports:
+      - "5005:5005"
+    depends_on:
+      - summarization_service_requirements
+      - rabbitmq
+      - postgres
+      - mongo
+      - kafka
+    networks:
+      - youtube-summarizer-net
+  
+  logging_service:
+    build:
+      context: .
+      dockerfile: docker/images/services/logging_service/Dockerfile.service_code
+    image: youtube-channel-summarizer-logging-service-code:latest
+    depends_on:
+      - base_code
+      - rabbitmq
+    networks:
+      - youtube-summarizer-net
+  
+  analytics_service:
+    build:
+      context: .
+      dockerfile: docker/images/services/analytics_service/Dockerfile.service_code
+    image: youtube-channel-summarizer-analytics-service-code:latest
+    depends_on:
+      - base_code
+      - kafka
+    networks:
+      - youtube-summarizer-net
+
+networks:
+  youtube-summarizer-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mongo_data:

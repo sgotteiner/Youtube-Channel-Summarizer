@@ -1,0 +1,7 @@
+FROM youtube-channel-summarizer-base-code:latest
+
+WORKDIR /app
+
+COPY src/services/logging_service/app.py /app/src/services/logging_service/
+
+CMD ["python", "src/services/logging_service/app.py"]

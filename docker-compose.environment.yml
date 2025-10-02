@@ -1,6 +1,52 @@
 version: '3.8'
 
 services:
+  base_linux:
+    build:
+      context: .
+      dockerfile: docker/images/base/Dockerfile.linux
+    image: youtube-channel-summarizer-base-linux:latest
+
+  base_requirements:
+    build:
+      context: .
+      dockerfile: docker/images/base/Dockerfile.base_requirements
+    image: youtube-channel-summarizer-base-requirements:latest
+    depends_on:
+      - base_linux
+
+  download_service_requirements:
+    build:
+      context: .
+      dockerfile: docker/images/services/download_service/Dockerfile.service_requirements
+    image: youtube-channel-summarizer-download-service-requirements:latest
+    depends_on:
+      - base_requirements
+
+  audio_extraction_service_requirements:
+    build:
+      context: .
+      dockerfile: docker/images/services/audio_extraction_service/Dockerfile.service_requirements
+    image: youtube-channel-summarizer-audio-extraction-service-requirements:latest
+    depends_on:
+      - base_requirements
+
+  transcription_service_requirements:
+    build:
+      context: .
+      dockerfile: docker/images/services/transcription_service/Dockerfile.service_requirements
+    image: youtube-channel-summarizer-transcription-service-requirements:latest
+    depends_on:
+      - base_requirements
+
+  summarization_service_requirements:
+    build:
+      context: .
+      dockerfile: docker/images/services/summarization_service/Dockerfile.service_requirements
+    image: youtube-channel-summarizer-summarization-service-requirements:latest
+    depends_on:
+      - base_requirements
+
   rabbitmq:
     image: rabbitmq:3.9-management-alpine
     container_name: rabbitmq
@@ -61,80 +107,6 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-    networks:
-      - youtube-summarizer-net
-
-  orchestrator:
-    build: .
-    container_name: orchestrator
-    command: python -m src.services.orchestrator_service.app
-    ports:
-      - "5000:5000"
-    depends_on:
-      - rabbitmq
-      - postgres
-    networks:
-      - youtube-summarizer-net
-
-  discovery_service:
-    build: .
-    command: python -m src.services.discovery_service.app
-    depends_on:
-      - rabbitmq
-      - postgres
-      - kafka
-    networks:
-      - youtube-summarizer-net
-
-  download_service:
-    build: .
-    command: python -m src.services.download_service.app
-    depends_on:
-      - rabbitmq
-      - postgres
-      - kafka
-    networks:
-      - youtube-summarizer-net
-
-  audio_extraction_service:
-    build: .
-    command: python -m src.services.audio_extraction_service.app
-    depends_on:
-      - rabbitmq
-      - postgres
-      - kafka
-    networks:
-      - youtube-summarizer-net
-
-  transcription_service:
-    build: .
-    command: python -m src.services.transcription_service.app
-    depends_on:
-      - rabbitmq
-      - postgres
-      - mongo
-      - kafka
-    networks:
-      - youtube-summarizer-net
-
-  summarization_service:
-    build: .
-    command: python -m src.services.summarization_service.app
-    ports:
-      - "5005:5005"
-    depends_on:
-      - rabbitmq
-      - postgres
-      - mongo
-      - kafka
-    networks:
-      - youtube-summarizer-net
-  
-  logging_service:
-    build: .
-    command: python -m src.services.logging_service.app
-    depends_on:
-      - rabbitmq
     networks:
       - youtube-summarizer-net
 

@@ -2,13 +2,13 @@ import logging
 import uuid
 from flask import Flask, jsonify, request
 from flasgger import Swagger
-from ..utils.logger import setup_logging
-from ..utils.queue_client import QueueClient
-from ..utils.postgresql_client import postgres_client, Video
+from src.utils.logger import setup_logging
+from src.utils.queue_client import QueueClient
+from src.utils.postgresql_client import postgres_client, Video
 
 app = Flask(__name__)
 logger = setup_logging()
-swagger = Swagger(app, template_file='../../documentation/orchestrator_api.yaml')
+swagger = Swagger(app, template_file='/app/apis/orchestrator_api.yaml')
 
 @app.route("/jobs", methods=["POST"])
 def create_job():

@@ -1,0 +1,7 @@
+FROM youtube-channel-summarizer-base-linux:latest
+
+WORKDIR /app
+
+COPY docker/images/base/requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt

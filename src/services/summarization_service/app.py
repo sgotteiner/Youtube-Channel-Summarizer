@@ -4,17 +4,17 @@ import threading
 import datetime
 from flask import Flask, jsonify, request
 from flasgger import Swagger
-from ...pipeline.AgentSummarizer import OpenAISummarizerAgent
-from ...utils.logger import setup_logging
-from ...utils.queue_client import QueueClient
-from ...utils.postgresql_client import postgres_client, Video, VideoStatus
-from ...utils.mongodb_client import mongodb_client
-from ...utils.event_publisher import EventPublisher
-from ...utils.kafka_producer import KafkaEventProducer
+from src.pipeline.AgentSummarizer import OpenAISummarizerAgent
+from src.utils.logger import setup_logging
+from src.utils.queue_client import QueueClient
+from src.utils.postgresql_client import postgres_client, Video, VideoStatus
+from src.utils.mongodb_client import mongodb_client
+from src.utils.event_publisher import EventPublisher
+from src.utils.kafka_producer import KafkaEventProducer
 
 logger = setup_logging()
 app = Flask(__name__)
-swagger = Swagger(app, template_file='../../documentation/summarization_api.yaml')
+swagger = Swagger(app, template_file='/app/apis/summarization_api.yaml')
 
 def process_summarization_task(channel, method, properties, body):
     data = json.loads(body)

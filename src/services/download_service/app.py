@@ -1,14 +1,14 @@
 import json
 import time
 import datetime
-from ...pipeline.VideoDownloader import VideoDownloader
-from ...utils.file_manager import FileManager
-from ...utils.logger import setup_logging
-from ...utils.queue_client import QueueClient
-from ...utils.postgresql_client import postgres_client, Video, VideoStatus
-from ...utils.resilience import resilient_consumer
-from ...utils.event_publisher import EventPublisher
-from ...utils.kafka_producer import KafkaEventProducer
+from src.pipeline.VideoDownloader import VideoDownloader
+from src.utils.file_manager import FileManager
+from src.utils.logger import setup_logging
+from src.utils.queue_client import QueueClient
+from src.utils.postgresql_client import postgres_client, Video, VideoStatus
+from src.utils.resilience import resilient_consumer
+from src.utils.event_publisher import EventPublisher
+from src.utils.kafka_producer import KafkaEventProducer
 
 logger = setup_logging()
 

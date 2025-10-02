@@ -2,7 +2,7 @@ import pika
 import json
 import logging
 import time
-from ..utils.logger import setup_logging
+from src.utils.logger import setup_logging
 
 logger = setup_logging()
 

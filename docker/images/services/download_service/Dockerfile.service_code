@@ -1,0 +1,9 @@
+FROM youtube-channel-summarizer-download-service-requirements:latest
+
+WORKDIR /app
+
+COPY src /app/src
+
+ENV PYTHONPATH=/app
+
+CMD ["python", "src/services/download_service/app.py"]

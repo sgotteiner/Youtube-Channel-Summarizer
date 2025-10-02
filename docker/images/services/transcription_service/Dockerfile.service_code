@@ -1,0 +1,9 @@
+FROM youtube-channel-summarizer-transcription-service-requirements:latest
+
+WORKDIR /app
+
+COPY src /app/src
+
+ENV PYTHONPATH=/app
+
+CMD ["python", "src/services/transcription_service/app.py"]

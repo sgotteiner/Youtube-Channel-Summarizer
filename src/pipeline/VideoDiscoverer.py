@@ -5,8 +5,8 @@ import asyncio
 from typing import List, Dict, Optional
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from ..utils.file_manager import FileManager
-from .VideoMetadataFetcher import VideoMetadataFetcher
+from src.utils.file_manager import FileManager
+from src.pipeline.VideoMetadataFetcher import VideoMetadataFetcher
 
 class VideoDiscoverer:
     """

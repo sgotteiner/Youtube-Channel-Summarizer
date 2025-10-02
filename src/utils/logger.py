@@ -1,32 +1,36 @@
 import logging
+import os
+from logging.handlers import RotatingFileHandler
 
-class Logger:
-    def __init__(self, name, log_file, level=logging.INFO):
-        """
-        Initializes the logger.
+def setup_logging(name: str = "youtube_summarizer", level: int = logging.INFO) -> logging.Logger:
+    """
+    Sets up a standardized logger for the application.
 
-        Args:
-            name (str): The name of the logger.
-            log_file (str): The file to which the logs will be written.
-            level (int): The logging level.
-        """
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(level)
+    Args:
+        name (str): The name of the logger.
+        level (int): The logging level (e.g., logging.INFO, logging.DEBUG).
 
-        # Create a file handler
-        handler = logging.FileHandler(log_file)
-        handler.setLevel(level)
+    Returns:
+        logging.Logger: Configured logger instance.
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
 
-        # Create a logging format
-        formatter = logging.Formatter('%(asctime)s.%(msecs)03d - %(threadName)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
+    # Ensure handlers are not duplicated if setup_logging is called multiple times
+    if not logger.handlers:
+        # Console handler
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(logging.Formatter('%(asctime)s.%(msecs)03d - %(threadName)s - %(levelname)s - %(message)s'))
+        logger.addHandler(console_handler)
 
-        # Add the handlers to the logger
-        if not self.logger.handlers:
-            self.logger.addHandler(handler)
+        # File handler (for persistent logs)
+        log_dir = "logs"
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, f"{name}.log")
+        
+        # Rotate log file after 1 MB, keep 5 backups
+        file_handler = RotatingFileHandler(log_file, maxBytes=1024 * 1024, backupCount=5)
+        file_handler.setFormatter(logging.Formatter('%(asctime)s.%(msecs)03d - %(threadName)s - %(levelname)s - %(message)s'))
+        logger.addHandler(file_handler)
 
-    def get_logger(self):
-        """
-        Returns the logger instance.
-        """
-        return self.logger
+    return logger

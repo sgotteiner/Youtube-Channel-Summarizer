@@ -3,7 +3,7 @@ Module for extracting audio from video files.
 """
 import logging
 from pathlib import Path
-from moviepy.editor import VideoFileClip
+# from moviepy.editor import VideoFileClip
 
 class AudioExtractor:
     """

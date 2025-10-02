@@ -1,0 +1,13 @@
+# Shared dependencies used by more than one service
+pika
+kafka-python
+psycopg2
+pymongo
+python-dotenv
+flask
+flasgger
+sqlalchemy
+yt-dlp
+PyYAML
+aiofiles
+gunicorn

@@ -1,13 +1,13 @@
 import json
 from pathlib import Path
 import datetime
-from ...pipeline.AudioTranscriber import AudioTranscriber
-from ...utils.logger import setup_logging
-from ...utils.queue_client import QueueClient
-from ...utils.postgresql_client import postgres_client, Video, VideoStatus
-from ...utils.mongodb_client import mongodb_client
-from ...utils.event_publisher import EventPublisher
-from ...utils.kafka_producer import KafkaEventProducer
+from src.pipeline.AudioTranscriber import AudioTranscriber
+from src.utils.logger import setup_logging
+from src.utils.queue_client import QueueClient
+from src.utils.postgresql_client import postgres_client, Video, VideoStatus
+from src.utils.mongodb_client import mongodb_client
+from src.utils.event_publisher import EventPublisher
+from src.utils.kafka_producer import KafkaEventProducer
 
 logger = setup_logging()
 

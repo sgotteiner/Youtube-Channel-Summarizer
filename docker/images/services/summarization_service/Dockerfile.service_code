@@ -1,0 +1,10 @@
+FROM youtube-channel-summarizer-summarization-service-requirements:latest
+
+WORKDIR /app
+
+COPY src /app/src
+COPY apis /app/apis
+
+ENV PYTHONPATH=/app
+
+CMD ["python", "src/services/summarization_service/app.py"]
