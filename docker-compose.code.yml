@@ -9,7 +9,7 @@ services:
     depends_on:
       - base_requirements
 
-  orchestrator:
+  orchestrator_service:
     build:
       context: .
       dockerfile: docker/images/services/orchestrator_service/Dockerfile.service_code
@@ -17,9 +17,12 @@ services:
     ports:
       - "5000:5000"
     depends_on:
-      - base_code
-      - rabbitmq
-      - postgres
+      base_code:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - youtube-summarizer-net
 
@@ -29,10 +32,14 @@ services:
       dockerfile: docker/images/services/discovery_service/Dockerfile.service_code
     image: youtube-channel-summarizer-discovery-service-code:latest
     depends_on:
-      - base_code
-      - rabbitmq
-      - postgres
-      - kafka
+      base_code:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     networks:
       - youtube-summarizer-net
 
@@ -42,10 +49,14 @@ services:
       dockerfile: docker/images/services/download_service/Dockerfile.service_code
     image: youtube-channel-summarizer-download-service-code:latest
     depends_on:
-      - download_service_requirements
-      - rabbitmq
-      - postgres
-      - kafka
+      download_service_requirements:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     networks:
       - youtube-summarizer-net
 
@@ -55,10 +66,14 @@ services:
       dockerfile: docker/images/services/audio_extraction_service/Dockerfile.service_code
     image: youtube-channel-summarizer-audio-extraction-service-code:latest
     depends_on:
-      - audio_extraction_service_requirements
-      - rabbitmq
-      - postgres
-      - kafka
+      audio_extraction_service_requirements:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     networks:
       - youtube-summarizer-net
 
@@ -68,11 +83,16 @@ services:
       dockerfile: docker/images/services/transcription_service/Dockerfile.service_code
     image: youtube-channel-summarizer-transcription-service-code:latest
     depends_on:
-      - transcription_service_requirements
-      - rabbitmq
-      - postgres
-      - mongo
-      - kafka
+      transcription_service_requirements:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     networks:
       - youtube-summarizer-net
 
@@ -84,11 +104,16 @@ services:
     ports:
       - "5005:5005"
     depends_on:
-      - summarization_service_requirements
-      - rabbitmq
-      - postgres
-      - mongo
-      - kafka
+      summarization_service_requirements:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     networks:
       - youtube-summarizer-net
   
@@ -98,8 +123,10 @@ services:
       dockerfile: docker/images/services/logging_service/Dockerfile.service_code
     image: youtube-channel-summarizer-logging-service-code:latest
     depends_on:
-      - base_code
-      - rabbitmq
+      base_code:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - youtube-summarizer-net
   
@@ -109,8 +136,10 @@ services:
       dockerfile: docker/images/services/analytics_service/Dockerfile.service_code
     image: youtube-channel-summarizer-analytics-service-code:latest
     depends_on:
-      - base_code
-      - kafka
+      base_code:
+        condition: service_started
+      kafka:
+        condition: service_healthy
     networks:
       - youtube-summarizer-net
 

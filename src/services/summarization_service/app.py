@@ -112,4 +112,4 @@ def summarize_text():
 if __name__ == "__main__":
     worker_thread = threading.Thread(target=start_worker, daemon=True)
     worker_thread.start()
-    app.run(debug=True, port=5005)
+    app.run(debug=True, host='0.0.0.0', port=5005)

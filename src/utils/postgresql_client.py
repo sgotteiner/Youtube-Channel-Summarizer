@@ -39,7 +39,7 @@ class Video(Base):
 class PostgresClient:
     def __init__(self, db_url=None):
         if db_url is None:
-            db_url = os.environ.get("POSTGRES_URL", "postgresql://user:password@localhost:5432/youtube_summarizer")
+            db_url = os.environ.get("POSTGRES_URL", "postgresql://user1:password1@postgres:5432/youtube_summarizer")
         
         self.engine = create_engine(db_url)
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)

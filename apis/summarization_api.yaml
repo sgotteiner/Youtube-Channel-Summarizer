@@ -4,7 +4,7 @@ info:
   description: API for summarizing raw text on demand.
   version: 1.0.0
 servers:
-  - url: http://localhost:5005
+  - url: http://summarization_service:5005
     description: Local development server
 
 paths:

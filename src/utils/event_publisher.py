@@ -4,7 +4,7 @@ import logging
 import time
 
 class EventPublisher:
-    def __init__(self, host='localhost', exchange_name='events_exchange', logger=None):
+    def __init__(self, host='rabbitmq', exchange_name='events_exchange', logger=None):
         self.host = host
         self.exchange_name = exchange_name
         self.logger = logger or logging.getLogger(__name__)

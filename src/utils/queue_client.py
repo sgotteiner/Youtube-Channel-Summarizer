@@ -4,7 +4,7 @@ import logging
 import time
 
 class QueueClient:
-    def __init__(self, host='localhost', logger=None):
+    def __init__(self, host='rabbitmq', logger=None):
         self.host = host
         self.logger = logger or logging.getLogger(__name__)
         self.connection = None

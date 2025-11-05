@@ -28,7 +28,7 @@ def main():
     """
     Main function to set up and start the event consumer.
     """
-    host = 'localhost'
+    host = 'rabbitmq'
     exchange_name = 'events_exchange'
     queue_name = 'logging_service_queue'
     
