@@ -1,3 +1,4 @@
 # Service-specific dependencies
 SpeechRecognition
 pydub
+moviepy

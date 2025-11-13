@@ -40,6 +40,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    volumes:
+      - shared_data:/app/data
     networks:
       - youtube-summarizer-net
 
@@ -57,6 +59,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    volumes:
+      - shared_data:/app/data
     networks:
       - youtube-summarizer-net
 
@@ -74,6 +78,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    volumes:
+      - shared_data:/app/data
     networks:
       - youtube-summarizer-net
 
@@ -93,6 +99,11 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    volumes:
+      - shared_data:/app/data
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - IS_OPENAI_RUNTIME=${IS_OPENAI_RUNTIME:-true}
     networks:
       - youtube-summarizer-net
 
@@ -114,6 +125,10 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    volumes:
+      - shared_data:/app/data
+    env_file:
+      - .env
     networks:
       - youtube-summarizer-net
   
@@ -150,3 +165,4 @@ networks:
 volumes:
   postgres_data:
   mongo_data:
+  shared_data:

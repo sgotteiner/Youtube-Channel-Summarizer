@@ -154,10 +154,9 @@ class VideoProcessor:
         """Transcribes the audio file."""
         self.logger.info(f"{self.log_prefix} Step 3.4c: Transcribing audio file.")
         audio_transcriber: AudioTranscriber = self.services['audio_transcriber']
-        loop = asyncio.get_running_loop()
-        transcription = await loop.run_in_executor(
-            self.executor, audio_transcriber.transcribe_audio, self.audio_path
-        )
+        # The transcribe_audio method is now async, so we can call it directly
+        # Pass video_id to create unique chunk filenames and avoid race conditions
+        transcription = await audio_transcriber.transcribe_audio(self.audio_path, video_id=self.video_id)
         if transcription:
             self.logger.info(f"{self.log_prefix} Transcription successful. Saving to file.")
             async with aiofiles.open(self.transcription_path, "w", encoding="utf-8") as f:

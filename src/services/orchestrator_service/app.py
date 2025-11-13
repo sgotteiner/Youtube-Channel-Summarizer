@@ -18,12 +18,12 @@ def create_job():
     (This docstring is now handled by the template_file)
     """
     data = request.get_json()
-    if not data or not data.get("channel_id"):
-        return jsonify({"error": "Missing channel_id parameter"}), 400
+    if not data or not data.get("channel_name"):
+        return jsonify({"error": "Missing channel_name parameter"}), 400
 
-    channel_id = data.get("channel_id")
+    channel_name = data.get("channel_name")
     job_id = str(uuid.uuid4())
-    logger.info(f"Received new job request for channel_id: {channel_id}. Assigned job_id: {job_id}")
+    logger.info(f"Received new job request for channel_name: {channel_name}. Assigned job_id: {job_id}")
 
     try:
         queue_client = QueueClient(logger=logger)
@@ -31,7 +31,7 @@ def create_job():
         
         message = {
             "job_id": job_id,
-            "channel_id": channel_id,
+            "channel_name": channel_name,
             "num_videos_to_process": data.get("num_videos_to_process", 5),
             "max_video_length": data.get("max_video_length", 30),
             "apply_max_length_for_captionless_only": data.get("apply_max_length_for_captionless_only", True)

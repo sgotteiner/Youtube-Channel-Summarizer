@@ -4,16 +4,16 @@ Main orchestrator for the YouTube Channel Summarizer pipeline.
 import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from pipeline.VideoDownloader import VideoDownloader
-from pipeline.AudioTranscriber import AudioTranscriber
-from pipeline.AudioExtractor import AudioExtractor
-from pipeline.AgentSummarizer import OpenAISummarizerAgent
-from utils.logger import Logger
-from pipeline.VideoProcessor import VideoProcessor
-from utils.file_manager import FileManager
-from utils.config import Config
-from pipeline.VideoMetadataFetcher import VideoMetadataFetcher
-from pipeline.VideoDiscoverer import VideoDiscoverer
+from src.pipeline.VideoDownloader import VideoDownloader
+from src.pipeline.AudioTranscriber import AudioTranscriber
+from src.pipeline.AudioExtractor import AudioExtractor
+from src.pipeline.AgentSummarizer import OpenAISummarizerAgent
+from src.utils.logger import Logger
+from src.pipeline.VideoProcessor import VideoProcessor
+from src.utils.file_manager import FileManager
+from src.utils.config import Config
+from src.pipeline.VideoMetadataFetcher import VideoMetadataFetcher
+from src.pipeline.VideoDiscoverer import VideoDiscoverer
 import aiofiles
 
 def initialize_services(logger: logging.Logger, file_manager: FileManager, is_openai_runtime: bool) -> dict:
@@ -22,7 +22,7 @@ def initialize_services(logger: logging.Logger, file_manager: FileManager, is_op
         'file_manager': file_manager,
         'video_downloader': VideoDownloader(logger),
         'audio_extractor': AudioExtractor(logger),
-        'audio_transcriber': AudioTranscriber(logger),
+        'audio_transcriber': AudioTranscriber(logger),  # Now handles async internally
         'summarizer': OpenAISummarizerAgent(is_openai_runtime, logger),
     }
 
@@ -67,8 +67,8 @@ async def main():
     file_manager = FileManager(config.channel_name, config.is_openai_runtime, logger)
     services = initialize_services(logger, file_manager, config.is_openai_runtime)
     
-    # Use a single executor for all blocking tasks
-    executor = ThreadPoolExecutor(max_workers=5)
+    # Use a single executor for CPU-bound blocking tasks
+    executor = ThreadPoolExecutor(max_workers=4)
     
     metadata_fetcher = VideoMetadataFetcher(config.channel_name, logger)
     video_discoverer = VideoDiscoverer(logger, metadata_fetcher, file_manager, executor)
@@ -98,6 +98,9 @@ async def main():
             logger.error(f'A video processing task generated an exception: {result}')
 
     logger.info("\n--- All processing complete. ---")
+    
+    # Clean up the executor
+    executor.shutdown(wait=True)
 
 if __name__ == '__main__':
     asyncio.run(main())

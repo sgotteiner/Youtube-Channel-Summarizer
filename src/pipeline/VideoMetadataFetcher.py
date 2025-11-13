@@ -7,20 +7,26 @@ from yt_dlp import YoutubeDL
 
 class VideoMetadataFetcher:
     """Fetches video metadata from a YouTube channel efficiently."""
-    def __init__(self, channel_id: str, logger: Optional[logging.Logger] = None):
-        self.channel_id = channel_id
+    def __init__(self, channel_name: str, logger: Optional[logging.Logger] = None):
+        self.channel_name = channel_name
         self.logger = logger
 
     def _get_channel_url(self) -> str:
-        """Constructs the full YouTube channel URL from a channel ID."""
-        return f"https://www.youtube.com/channel/{self.channel_id}"
+        """Constructs the full YouTube channel URL from a channel name."""
+        # Clean the channel name first
+        clean_name = self.channel_name.strip()
+        if clean_name.startswith('@'):
+            return f"https://www.youtube.com/{clean_name}"
+        else:
+            # Try the @ format first as it's most common now
+            return f"https://www.youtube.com/@{clean_name}"
 
     def get_video_entries(self) -> List[Dict]:
         """
         Retrieves a fast, lightweight list of video entries from the channel.
         """
-        self.logger.info(f"Fetching lightweight list of video entries for '{self.channel_name}'...")
         channel_url = self._get_channel_url()
+        self.logger.info(f"Fetching lightweight list of video entries for '{self.channel_name.strip()}'...")
         ydl_opts = {"quiet": True, "extract_flat": True, "dump_single_json": True}
         try:
             with YoutubeDL(ydl_opts) as ydl:

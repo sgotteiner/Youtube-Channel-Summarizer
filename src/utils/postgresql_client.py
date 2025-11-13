@@ -2,6 +2,7 @@ import os
 from sqlalchemy import create_engine, Column, String, Integer, Float, DateTime, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import DisconnectionError, OperationalError
 import enum
 import logging
 
@@ -25,7 +26,7 @@ class Video(Base):
     __tablename__ = 'videos'
     id = Column(String, primary_key=True)
     job_id = Column(String, nullable=False, index=True)
-    channel_id = Column(String, nullable=False, index=True)
+    channel_name = Column(String, nullable=False, index=True)
     title = Column(String, nullable=False)
     upload_date = Column(String) # Keep as string to match existing data
     duration = Column(Float)
@@ -41,7 +42,16 @@ class PostgresClient:
         if db_url is None:
             db_url = os.environ.get("POSTGRES_URL", "postgresql://user1:password1@postgres:5432/youtube_summarizer")
         
-        self.engine = create_engine(db_url)
+        # Configure the engine with connection pooling and proper disposal
+        self.engine = create_engine(
+            db_url,
+            pool_pre_ping=True,  # Validates connections before use
+            pool_recycle=3600,   # Recycle connections after 1 hour
+            echo=False,          # Set to True for SQL debugging
+            connect_args={
+                "connect_timeout": 10,  # Timeout for connections
+            }
+        )
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
         self.create_tables()
 
