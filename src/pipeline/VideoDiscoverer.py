@@ -4,9 +4,6 @@ Module for discovering new YouTube videos to be processed.
 import asyncio
 from typing import List, Dict, Optional
 import logging
-from concurrent.futures import ThreadPoolExecutor
-from src.utils.file_manager import FileManager
-from src.pipeline.VideoMetadataFetcher import VideoMetadataFetcher
 
 class VideoDiscoverer:
     """

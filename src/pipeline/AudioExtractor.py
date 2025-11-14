@@ -5,7 +5,6 @@ import logging
 from pathlib import Path
 # from moviepy.editor import VideoFileClip
 from moviepy import VideoFileClip
-
 class AudioExtractor:
     """
     Extracts audio from a video file and saves it as a WAV file.
@@ -19,7 +18,7 @@ class AudioExtractor:
         """
         self.logger = logger
 
-    def extract_audio(self, video_path: Path, audio_path: Path) -> bool:
+    def extract_audio(self, video_path: Path, audio_path: Path, video_id: str = None) -> bool:
         """
         Extracts the audio track from a video file.
 
@@ -28,12 +27,16 @@ class AudioExtractor:
         Args:
             video_path (Path): The path to the source video file.
             audio_path (Path): The path where the extracted audio will be saved.
+            video_id (str, optional): The video ID for logging purposes.
 
         Returns:
             bool: True if the audio was extracted successfully or already exists, False otherwise.
         """
         if audio_path.exists():
             self.logger.info(f"Audio for {video_path} already exists at {audio_path}. Skipping extraction.")
+            # Log the existence to the video_id format as well if provided
+            if video_id:
+                self.logger.info("[%s] Audio extracted successfully to: %s", video_id, audio_path)
             return True
 
         audio_path.parent.mkdir(parents=True, exist_ok=True)
@@ -43,8 +46,16 @@ class AudioExtractor:
                 audio = video.audio
                 # write_audiofile handles the conversion to WAV
                 audio.write_audiofile(str(audio_path))
+
             self.logger.info(f"Audio extracted successfully from {video_path} to {audio_path}")
+
+            # Log completion status with video_id if provided
+            if video_id:
+                self.logger.info("[%s] Audio extracted successfully to: %s", video_id, audio_path)
             return True
         except Exception as e:
             self.logger.error(f"Error extracting audio from {video_path}: {e}")
+            # Log failure status with video_id if provided
+            if video_id:
+                self.logger.error("[%s] Failed to extract audio", video_id)
             return False

@@ -82,7 +82,7 @@ class AudioTranscriber:
         # Create unique chunk filenames to avoid race conditions when multiple videos are being processed
         audio_file_prefix = audio_path.stem.replace(" ", "_").replace("-", "_")  # Sanitize filename
         chunk_base_name = f"{audio_file_prefix}_{video_id}" if video_id else audio_file_prefix
-        
+
         # Prepare chunks
         chunks_info = []
         for i, start_ms in enumerate(range(0, len(full_audio), chunk_length_ms)):
@@ -93,7 +93,7 @@ class AudioTranscriber:
 
         # Process chunks concurrently
         self.logger.info(f"Starting to process {len(chunks_info)} audio chunks concurrently...")
-        
+
         # Export all chunks to temporary files first
         loop = asyncio.get_event_loop()
         for chunk, chunk_filename, i in chunks_info:
@@ -106,7 +106,7 @@ class AudioTranscriber:
             tasks.append(task)
 
         transcribed_chunks = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # Clean up temporary files after processing
         for _, chunk_filename, _ in chunks_info:
             try:
@@ -124,5 +124,13 @@ class AudioTranscriber:
             else:
                 final_chunks.append(chunk_result)
 
+        transcription_result = " ".join(final_chunks)
         self.logger.info(f"Audio transcription finished for {audio_path}. Combined {len([t for t in final_chunks if t.strip() and '[transcription error]' not in t])} successful chunks.")
-        return " ".join(final_chunks)
+        
+        # Automatically log completion status with video_id if provided
+        if video_id:
+            self.logger.info("[%s] Transcription saved to filesystem: %s", video_id, audio_path.with_suffix('.txt'))
+            if transcription_result:
+                self.logger.info("[%s] Transcription completed (length: %d characters)", video_id, len(transcription_result))
+        
+        return transcription_result

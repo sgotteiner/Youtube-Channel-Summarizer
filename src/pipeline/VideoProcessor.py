@@ -5,7 +5,6 @@ import asyncio
 import os
 from pathlib import Path
 import logging
-from typing import Dict
 from concurrent.futures import ThreadPoolExecutor
 import aiofiles
 from src.pipeline.VideoDownloader import VideoDownloader

@@ -112,8 +112,6 @@ services:
       context: .
       dockerfile: docker/images/services/summarization_service/Dockerfile.service_code
     image: youtube-channel-summarizer-summarization-service-code:latest
-    ports:
-      - "5005:5005"
     depends_on:
       summarization_service_requirements:
         condition: service_started

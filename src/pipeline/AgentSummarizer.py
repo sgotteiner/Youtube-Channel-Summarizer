@@ -123,3 +123,32 @@ class OpenAISummarizerAgent:
             return transcription
 
         return await self._recursive_summarize(transcription)
+
+    async def summary_call(self, transcription: str, video_id: str = None) -> Optional[str]:
+        """
+        Asynchronously generates a summary of the provided transcription.
+        
+        Args:
+            transcription (str): The transcription to summarize
+            video_id (str, optional): The video ID for logging purposes
+        
+        Returns:
+            Optional[str]: The summary text, or None if failed
+        """
+        if not self.is_openai_runtime:
+            self.logger.info("OpenAI runtime is OFF. Returning raw transcription as summary.")
+            # Still log the completion status if video_id is provided
+            if video_id:
+                self.logger.info("[%s] Summarization task completed successfully", video_id)
+            return transcription
+
+        result = await self._recursive_summarize(transcription)
+        
+        # Log completion status with video_id if provided
+        if video_id:
+            if result:
+                self.logger.info("[%s] Summarization task completed successfully", video_id)
+            else:
+                self.logger.error("[%s] Failed to generate summary", video_id)
+        
+        return result

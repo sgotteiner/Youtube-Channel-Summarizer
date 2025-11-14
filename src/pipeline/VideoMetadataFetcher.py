@@ -77,3 +77,31 @@ class VideoMetadataFetcher:
         except Exception as e:
             self.logger.warning(f"Failed to fetch metadata for video ID {video_id}: {e}")
             return None
+
+    def fetch_video_details(self, video_id: str) -> Optional[Dict]:
+        """
+        Fetches the full, detailed metadata for a single video.
+
+        Args:
+            video_id (str): The video ID to fetch details for
+
+        Returns:
+            Optional[Dict]: Dictionary with video details, or None if failed
+        """
+        self.logger.debug(f"Fetching full metadata for video ID: {video_id}...")
+        ydl_opts = {"quiet": True, "skip_download": True}
+        try:
+            with YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+                result = self._parse_video_info(info)
+                # Log success with video_id if we got valid results
+                if result:
+                    self.logger.info("[%s] Video is valid. Adding to database and publishing to download queue.", video_id)
+                else:
+                    self.logger.info("[%s] Video is invalid. Skipping.", video_id)
+                return result
+        except Exception as e:
+            self.logger.warning(f"Failed to fetch metadata for video ID {video_id}: {e}")
+            # Still log that it's invalid when fetching fails
+            self.logger.info("[%s] Video is invalid. Skipping.", video_id)
+            return None

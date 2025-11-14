@@ -57,7 +57,7 @@ class KafkaEventProducer:
                     self.logger.info("Kafka connection error, recreating producer...")
                     try:
                         self.producer.close()
-                    except:
+                    except Exception:
                         pass  # Ignore errors during close
                     self._connect()
 

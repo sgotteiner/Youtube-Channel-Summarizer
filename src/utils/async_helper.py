@@ -3,12 +3,10 @@ Utility module for async helper patterns to reduce code duplication across servi
 """
 import asyncio
 import logging
-from typing import Awaitable, Callable
+from typing import Awaitable
+import threading
 
 logger = logging.getLogger(__name__)
-
-
-import threading
 
 class ServiceAsyncProcessor:
     """
@@ -35,11 +33,11 @@ class ServiceAsyncProcessor:
         # Acknowledge the message immediately in the original RabbitMQ consumer thread
         try:
             channel.basic_ack(delivery_tag=method.delivery_tag)
-        except Exception as e:
+        except Exception:
             # If we can't acknowledge, try to reject instead
             try:
                 channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
-            except:
+            except Exception:
                 # If both fail, we can't do much else
                 pass
         
