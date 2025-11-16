@@ -13,11 +13,14 @@ class DownloadService(ServiceTemplate[str]):
         super().__init__("download")
         self.video_downloader = VideoDownloader(self.logger)
 
-    async def execute_pipeline(self, video, video_id: str) -> str:
-        # Set up file paths
-        file_manager = FileManager(channel_name=video.channel_name, is_openai_runtime=False, logger=self.logger)
-        video_data = {"video_title": video.title, "upload_date": video.upload_date, "video_id": video.id}
-        video_paths = file_manager.get_video_paths(video_data)
+    def get_input_file_path(self, video_paths):
+        """
+        Download service doesn't need an input file path (it downloads from URL).
+        """
+        return None  # No input file needed for download service
+
+    async def perform_specific_operation(self, video, input_file_path, video_paths, video_id: str) -> str:
+        # Download service doesn't use input file path, just needs video_paths for output location
         path_to_save_video = video_paths["video"].parent
         youtube_video_url = f"https://www.youtube.com/watch?v={video_id}"
 
@@ -28,23 +31,8 @@ class DownloadService(ServiceTemplate[str]):
 
         return str(downloaded_path) if downloaded_path else None
 
-    async def get_working_file_path(self, video_id: str, video, result: str) -> str:
-        """
-        Return the path of the downloaded video file to be saved as the working_file_path.
-        """
-        return result
-
-    async def get_service_specific_updates(self, video_id: str, video, result: str) -> dict:
-        """
-        The download service doesn't need specific updates since working_file_path handles this.
-        """
-        return {}  # Download service relies on the working_file_path mechanism
-
-    def build_event_payload(self, video_id: str, video, result: str) -> dict:
+    def get_service_specific_event_fields(self, video_id: str, video, result: str) -> dict:
         return {
-            "video_id": video_id,
-            "job_id": video.job_id,
-            "downloaded_at": datetime.datetime.utcnow().isoformat(),
             "file_path": result
         }
 

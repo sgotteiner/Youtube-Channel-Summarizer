@@ -86,7 +86,7 @@ class OpenAISummarizerAgent:
 
         chunks = self._split_text_into_chunks(text)
         self.logger.info(f"Text split into {len(chunks)} chunks for summarization.")
-        
+
         # Process chunks concurrently for better performance
         tasks = []
         for i, chunk in enumerate(chunks):
@@ -94,9 +94,9 @@ class OpenAISummarizerAgent:
             prompt = "You are a summary assistant. Summarize this chunk of a larger transcription."
             task = asyncio.create_task(self._summarize_text(chunk, prompt))
             tasks.append(task)
-        
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # Collect successful summaries, handling possible exceptions
         summaries = []
         for i, result in enumerate(results):
@@ -105,33 +105,23 @@ class OpenAISummarizerAgent:
                 # Continue processing even if one chunk fails
             elif result:
                 summaries.append(result)
-        
+
         if not summaries:
             self.logger.error("No successful summaries were generated from any chunks.")
             return None
-            
+
         combined_summary = " ".join(summaries)
         self.logger.info("All chunks summarized. Now summarizing the combined summary.")
         return await self._recursive_summarize(combined_summary)
 
-    async def summary_call(self, transcription: str) -> Optional[str]:
-        """
-        Asynchronously generates a summary of the provided transcription.
-        """
-        if not self.is_openai_runtime:
-            self.logger.info("OpenAI runtime is OFF. Returning raw transcription as summary.")
-            return transcription
-
-        return await self._recursive_summarize(transcription)
-
     async def summary_call(self, transcription: str, video_id: str = None) -> Optional[str]:
         """
         Asynchronously generates a summary of the provided transcription.
-        
+
         Args:
             transcription (str): The transcription to summarize
             video_id (str, optional): The video ID for logging purposes
-        
+
         Returns:
             Optional[str]: The summary text, or None if failed
         """
@@ -143,12 +133,12 @@ class OpenAISummarizerAgent:
             return transcription
 
         result = await self._recursive_summarize(transcription)
-        
+
         # Log completion status with video_id if provided
         if video_id:
             if result:
                 self.logger.info("[%s] Summarization task completed successfully", video_id)
             else:
                 self.logger.error("[%s] Failed to generate summary", video_id)
-        
+
         return result

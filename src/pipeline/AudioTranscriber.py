@@ -12,6 +12,7 @@ import logging
 from typing import Optional
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+import aiofiles
 
 class AudioTranscriber:
     """
@@ -126,11 +127,43 @@ class AudioTranscriber:
 
         transcription_result = " ".join(final_chunks)
         self.logger.info(f"Audio transcription finished for {audio_path}. Combined {len([t for t in final_chunks if t.strip() and '[transcription error]' not in t])} successful chunks.")
-        
+
         # Automatically log completion status with video_id if provided
         if video_id:
-            self.logger.info("[%s] Transcription saved to filesystem: %s", video_id, audio_path.with_suffix('.txt'))
             if transcription_result:
                 self.logger.info("[%s] Transcription completed (length: %d characters)", video_id, len(transcription_result))
-        
+
         return transcription_result
+
+    async def transcribe_audio_and_save(self, audio_path: Path, output_path: Path, chunk_length_ms: int = 10000, video_id: str = None) -> Optional[Path]:
+        """
+        Transcribes audio and saves the result to a file.
+
+        Args:
+            audio_path (Path): The path to the audio file to transcribe.
+            output_path (Path): The path where the transcription should be saved.
+            chunk_length_ms (int): The length of each chunk in milliseconds.
+            video_id (str, optional): The video ID for logging purposes.
+
+        Returns:
+            Optional[Path]: Path to the saved transcription file, or None if operation failed.
+        """
+        # Transcribe the audio
+        transcription_text = await self.transcribe_audio(audio_path, chunk_length_ms, video_id)
+
+        if not transcription_text:
+            return None
+
+        try:
+            # Create the output directory if it doesn't exist
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Save the transcription to the specified output path
+            async with aiofiles.open(output_path, "w", encoding="utf-8") as f:
+                await f.write(transcription_text)
+
+            self.logger.info("[%s] Transcription saved to: %s", video_id, output_path)
+            return output_path
+        except Exception as e:
+            self.logger.error("[%s] Failed to save transcription to %s: %s", video_id, output_path, e)
+            return None

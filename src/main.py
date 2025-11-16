@@ -1,5 +1,7 @@
 """
-Main orchestrator for the YouTube Channel Summarizer pipeline.
+Legacy monolithic orchestrator for the YouTube Channel Summarizer pipeline.
+This is the old proof-of-concept code. 
+The new architecture uses microservices with RabbitMQ queues.
 """
 import asyncio
 import logging
@@ -13,7 +15,7 @@ from src.pipeline.VideoProcessor import VideoProcessor
 from src.utils.file_manager import FileManager
 from src.utils.config import Config
 from src.pipeline.VideoMetadataFetcher import VideoMetadataFetcher
-from src.pipeline.VideoDiscoverer import VideoDiscoverer
+
 import aiofiles
 
 def initialize_services(logger: logging.Logger, file_manager: FileManager, is_openai_runtime: bool) -> dict:

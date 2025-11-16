@@ -16,16 +16,15 @@ class SummarizationService(ServiceTemplate[str]):
         super().__init__("summarization")
         self.summarizer_agent = OpenAISummarizerAgent(is_openai_runtime=True, logger=self.logger)
 
-    async def execute_pipeline(self, video, video_id: str) -> str:
-        # Check if working file path is available (contains the transcription file path for summarization)
-        if not video.working_file_path:
-            self.logger.error("[%s] Working file path not available in database", video_id)
-            return None
+    def get_input_file_path(self, video_paths):
+        """
+        Summarization service needs the transcription file as input.
+        """
+        return video_paths["transcription"]  # Input is the transcription file
 
-        transcription_path = Path(video.working_file_path)
-        if not transcription_path.exists():
-            self.logger.error("[%s] File at working path not found: %s", video_id, transcription_path)
-            return None
+    async def perform_specific_operation(self, video, input_file_path, video_paths, video_id: str) -> str:
+        # Summarization service needs the input transcription file path
+        transcription_path = input_file_path
 
         # Read transcription content
         async with aiofiles.open(transcription_path, "r", encoding="utf-8") as f:
@@ -45,18 +44,9 @@ class SummarizationService(ServiceTemplate[str]):
 
         return summary_text
 
-    async def get_working_file_path(self, video_id: str, video, result: str) -> str:
-        """
-        For summarization, we don't set a working file path as it's the final step in the pipeline.
-        """
-        return None  # Summarization is the final step, no further file processing needed
-
-    def build_event_payload(self, video_id: str, video, result: str) -> dict:
+    def get_service_specific_event_fields(self, video_id: str, video, result: str) -> dict:
         return {
-            "video_id": video_id,
-            "job_id": video.job_id,
-            "summarized_at": datetime.datetime.utcnow().isoformat(),
-            "summary_length": len(result)
+            "summary_length": len(result) if result else 0
         }
 
 
