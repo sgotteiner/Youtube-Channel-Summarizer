@@ -5,6 +5,7 @@ import asyncio
 import logging
 from typing import Awaitable
 import threading
+from src.constants.time_constants import ASYNC_HELPER_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ class ServiceAsyncProcessor:
                 pass
         
         # Wait for the loop to be set if it's not ready yet
-        self.loop_set.wait(timeout=5.0)  # Wait up to 5 seconds for the loop to be set
+        self.loop_set.wait(timeout=ASYNC_HELPER_TIMEOUT)  # Wait up to 5 seconds for the loop to be set
         
         # Schedule the task in the main event loop using run_coroutine_threadsafe since
         # this is called from a different thread than the event loop
@@ -72,7 +73,7 @@ class ServiceAsyncProcessor:
         Schedule a task for async execution in the main event loop.
         """
         # Wait for the loop to be set if it's not ready yet
-        self.loop_set.wait(timeout=5.0)  # Wait up to 5 seconds for the loop to be set
+        self.loop_set.wait(timeout=ASYNC_HELPER_TIMEOUT)  # Wait up to 5 seconds for the loop to be set
         
         if self.loop and not self.loop.is_closed():
             task = asyncio.run_coroutine_threadsafe(coroutine_func, self.loop)

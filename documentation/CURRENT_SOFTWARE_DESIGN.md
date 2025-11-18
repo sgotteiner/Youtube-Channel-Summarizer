@@ -1,136 +1,159 @@
-# Software Design Document: YouTube Channel Summarizer (Refactored)
+# Current Software Design Patterns
 
-**Version:** 2.0  
-**Date:** November 14, 2025
+## Overview
+The YouTube Channel Summarizer implements several key design patterns that enable clean, maintainable code while supporting the microservices architecture.
 
-## Table of Contents
-1. [Introduction](#introduction)
-2. [Current Architecture Overview](#current-architecture-overview)
-3. [Component Design](#component-design)
-4. [Design Patterns](#design-patterns)
-5. [Data Flow](#data-flow)
-6. [Error Handling](#error-handling)
+## Primary Patterns
 
-## Introduction
+### Template Method Pattern
+Implemented in `ServiceTemplate[T]` in `src/patterns/ServiceTemplatePattern.py`:
 
-### Purpose
-This document describes the current architecture of the YouTube Channel Summarizer application after significant refactoring to implement proper design patterns and eliminate code duplication. The system now uses a refined microservices architecture enhanced with Template Method and Factory patterns.
+**Purpose**: Standardize the common workflow across all services while allowing customization of specific operations.
 
-### Scope
-The application automates the process of fetching, transcribing, and summarizing YouTube videos from specified channels. It has been refactored to use proper design patterns, eliminate code duplication, and improve maintainability.
+**Implementation**:
+- Abstract base class `ServiceTemplate[T]` with generic type parameter
+- Template method `process_message()` implements the common workflow:
+  - Retrieve video from database
+  - Call service-specific `execute_pipeline()` method
+  - Handle success/failure with standard operations
+- Concrete services only implement the `execute_pipeline()` method
+- Provides helper methods: `create_file_manager()`, `prepare_video_data()`, `validate_input_file_path()`
 
-## Current Architecture Overview
+**Benefits**:
+- Eliminates code duplication (~200 lines per service → ~50 lines per service)
+- Ensures consistent behavior across all services
+- Maintains flexibility for service-specific logic
+- Enables easy addition of new services
 
-### Architectural Style
-The system uses a **refined microservices architecture** enhanced with design patterns:
-- Individual services (Discovery, Download, Audio Extraction, Transcription, Summarization)
-- RabbitMQ for command queues coordinating workflow
-- Kafka for event streaming to analytics and logging services
-- PostgreSQL for structured metadata storage
-- MongoDB for unstructured content (transcriptions, summaries)
+### Factory Pattern
+Implemented in `ManagerFactory` in `src/patterns/manager_factory.py`:
 
-### Pattern Enhancement
-The architecture has been enhanced with:
-- **Template Method Pattern**: Standardizes service operations while eliminating code duplication
-- **Factory Pattern**: Ensures consistent manager creation across services
-- **Single Responsibility Principle**: Each component has a single, well-defined purpose
+**Purpose**: Create consistent database, queue, and event manager instances.
 
-## Component Design
+**Implementation**:
+- Static methods for creating all required managers
+- Consistent configuration and behavior across all services
+- Centralized management of dependencies
 
-### Service Layer (src/services/)
-Each service now extends `ServiceTemplate[T]` where T is the service-specific return type:
+**Benefits**:
+- Ensures consistent manager behavior
+- Reduces boilerplate code in services
+- Simplifies testing with mock managers
 
-- **DiscoveryService**: Discovers new videos from YouTube channels
-- **DownloadService**: Downloads video files from URLs
-- **AudioExtractionService**: Extracts audio from video files
-- **TranscriptionService**: Converts audio to text
-- **SummarizationService**: Generates summaries from text using AI
+### Strategy Pattern Elements
+Used internally in ServiceTemplate for different service types:
 
-All services follow the same pattern but only implement their business logic.
+**Implementation**:
+- ServiceTemplate uses service-specific mappings based on service_type
+- Each service gets appropriate status, queue, and event names automatically
+- Standardized handling with service-specific adjustments
 
-### Pipeline Tools Layer (src/pipeline/)
-Specialized tools for domain-specific operations:
+## Helper Methods Pattern
+The ServiceTemplate provides standardized helper methods:
 
-- **VideoMetadataFetcher**: Retrieves video metadata from YouTube
-- **VideoDownloader**: Downloads video files with proper error handling
-- **AudioExtractor**: Extracts audio streams from video files
-- **AudioTranscriber**: Converts audio to text with chunking for long files
-- **AgentSummarizer**: Calls OpenAI for text summarization
+### create_file_manager(video)
+- Creates standardized FileManager instance with consistent parameters
+- Uses video.channel_name and default settings
+- Ensures consistent file path generation across services
 
-Each tool handles its own domain concerns.
+### prepare_video_data(video, video_id)
+- Prepares standardized video data dictionary
+- Ensures consistent video metadata format for file operations
+- Maps video attributes to required fields
 
-### Manager Layer (src/utils/)
-Manages infrastructure concerns:
+### validate_input_file_path(file_path, video_id)
+- Validates that specified file paths exist
+- Provides consistent error logging
+- Returns None if path doesn't exist
 
-- **DatabaseManager**: Handles PostgreSQL operations with proper error handling
-- **QueueManager**: Manages RabbitMQ operations
-- **EventManager**: Handles event publishing to both RabbitMQ and Kafka
+## Service Architecture Pattern
+Each service follows a standardized implementation pattern:
 
-### Pattern Layer (src/patterns/)
-Implements the core architectural patterns:
+### Standard Service Structure
+```
+class XxxService(ServiceTemplate[T]):
+    def __init__(self):
+        super().__init__("service_type")
+        self.pipeline_tool = XxxPipelineTool(self.logger)
 
-- **ServiceTemplatePattern**: Implements Template Method pattern for services
-- **ManagerFactory**: Implements Factory pattern for manager creation
+    async def execute_pipeline(self, video, video_id: str) -> T:
+        # 1. Get file paths using helper methods
+        file_manager = self.create_file_manager(video)
+        video_data = self.prepare_video_data(video, video_id)
+        video_paths = file_manager.get_video_paths(video_data)
 
-## Design Patterns
+        # 2. Validate input if needed
+        input_path = self.validate_input_file_path(video_paths["input"], video_id)
+        if not input_path:
+            return None
 
-### Template Method Pattern (`ServiceTemplate`)
-**Problem**: Code duplication across services with similar workflows
-**Solution**: Abstract class defines the common workflow but defers specific steps to subclasses
+        # 3. Call pipeline tool with paths from FileManager
+        result = await self.pipeline_tool.specific_operation(
+            input_path, video_paths["output"], video_id
+        )
 
-Benefits:
-- Services reduced from ~200 lines to ~50 lines
-- Consistent behavior across all services
-- Easy to add new services following the same pattern
-- Standardized error handling and logging
+        return result
 
-### Factory Pattern (`ManagerFactory`)
-**Problem**: Inconsistent manager creation with duplicate configuration
-**Solution**: Factory class creates all managers with consistent configuration
+    def get_service_specific_event_fields(self, video_id: str, video, result: T) -> dict:
+        # Return service-specific fields for event payload
+        return {...}
+```
 
-Benefits:
-- Consistent manager behavior across services
-- Centralized configuration management
-- Easy to update manager setup
+### Benefits of Standardized Pattern
+- Consistent structure across all services
+- Clear separation of concerns (Service: orchestration, Pipeline Tool: business logic)
+- Easy to understand and maintain
+- Reduced cognitive load for developers
 
-### Separation of Concerns
-**Problem**: Mixed business logic, infrastructure logic, and orchestration
-**Solution**: Clear boundaries between service orchestration, domain operations, and infrastructure
+## Pipeline Tool Interface Pattern
+Pipeline tools follow a consistent interface pattern:
 
-## Data Flow
+### Standard Pipeline Tool Structure
+```
+class XxxPipelineTool:
+    def __init__(self, logger: logging.Logger):
+        self.logger = logger
 
-### Service Execution Flow
-1. Service receives message from RabbitMQ queue
-2. Service updates video status in PostgreSQL to reflect processing state
-3. Service calls its specific pipeline tool (with automatic video_id-based logging)
-4. Pipeline tool performs domain-specific operation (all operations are I/O-bound, not CPU-intensive)
-5. On success:
-   - Service updates video status to completion status in PostgreSQL
-   - Service sends message to next queue in pipeline
-   - Service publishes event to Kafka/RabbitMQ
-6. On failure:
-   - Service updates video status to FAILED in PostgreSQL
+    async def specific_operation(self, input_path: Path, output_path: Path, video_id: str = None) -> Optional[Path]:
+        # Operation logic with automatic logging
+        # Input validation
+        # Processing
+        # Output handling
+        pass
+```
 
-### File Path Management
-Each service updates the `working_file_path` field in the database with the output from its operation:
-- Discovery: Doesn't set working_file_path (initial step)
-- Download: Sets to video file path
-- Audio Extraction: Sets to audio file path
-- Transcription: Sets to transcription file path
-- Summarization: Final step, no further file processing
+## FileManager Integration Pattern
+All file operations use centralized FileManager:
 
-## Error Handling
+**Implementation**:
+- Service gets paths via `file_manager.get_video_paths(video_data)`
+- Consistent file naming and directory structure
+- Shared file path logic across services
+- Consistent sanitization (replaces spaces with underscores)
 
-### Service-Level Resilience
-- Services inherit common error handling from ServiceTemplate
-- All exceptions caught and video status updated to FAILED
-- No single service failure affects others in the pipeline
+**Benefits**:
+- No duplicate file path logic
+- Consistent file naming across services
+- Easy to modify file structure in one place
+- Prevents file path mismatches between services
 
-### Pipeline Continuity
-- Messages remain in queue if service fails, ensuring no data loss
-- Each service updates database status independently
-- Failure at one stage doesn't halt processing of other videos
+## Error Handling Pattern
+Consistent error handling across all services:
 
-### Retry Mechanisms
-- RabbitMQ handles message redelivery for failed service instances
-- Pipeline tools handle their own internal robustness internally
+### In ServiceTemplate:
+- Standardized try-catch blocks in `process_message`
+- Consistent status updates for success/failure
+- Centralized logging patterns
+
+### In Pipeline Tools:
+- Input validation with consistent error messages
+- Proper exception handling with meaningful logs
+- Automatic status logging with video_id
+
+## Event Payload Pattern
+Services build event payloads using a consistent approach:
+- Base payload with common fields (video_id, job_id, completed_at)
+- Service-specific fields added via `get_service_specific_event_fields`
+- Automatic inclusion of additional fields like character counts, file paths, etc.
+
+This design ensures all components work together harmoniously while maintaining the separation of concerns necessary for a scalable microservices architecture.

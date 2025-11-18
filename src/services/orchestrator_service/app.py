@@ -7,6 +7,7 @@ from flasgger import Swagger
 from src.utils.logger import setup_logging
 from src.utils.queue_manager import QueueManager
 from src.utils.db_manager import DatabaseManager
+from src.constants.connection_constants import DEFAULT_API_PORT, DEFAULT_API_HOST
 
 
 class OrchestratorService:
@@ -42,7 +43,8 @@ class OrchestratorService:
                     "apply_max_length_for_captionless_only": data.get("apply_max_length_for_captionless_only", True)
                 }
 
-                if not self.queue_manager.send_message('discovery_queue', message):
+                from src.enums.service_enums import ServiceType
+                if not self.queue_manager.send_message(ServiceType.DISCOVERY, message):
                     return jsonify({"error": "Failed to queue job"}), 500
 
                 return jsonify({"job_id": job_id, "message": "Job accepted and queued for processing."}), 202
@@ -66,7 +68,8 @@ class OrchestratorService:
                     {
                         "video_id": v.id,
                         "title": v.title,
-                        "status": v.status.name if v.status else "UNKNOWN",
+                        "stage": v.stage,
+                        "status": v.status if v.status else "UNKNOWN",
                         "upload_date": v.upload_date
                     } for v in videos
                 ]
@@ -75,7 +78,7 @@ class OrchestratorService:
                 self.logger.error("Error fetching status for job %s: %s", job_id, e)
                 return jsonify({"error": "Failed to retrieve job status"}), 500
 
-    def run(self, debug=True, host='0.0.0.0', port=5000):
+    def run(self, debug=True, host=DEFAULT_API_HOST, port=DEFAULT_API_PORT):
         """Run the Flask app."""
         self.app.run(debug=debug, host=host, port=port)
 

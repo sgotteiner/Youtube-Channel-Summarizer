@@ -1,16 +1,14 @@
 """
 Download Service - Downloads video files using the service framework.
 """
-import datetime
 from src.pipeline.VideoDownloader import VideoDownloader
-from src.utils.file_manager import FileManager
 from src.patterns.ServiceTemplatePattern import ServiceTemplate
-from src.utils.postgresql_client import VideoStatus
+from src.enums.service_enums import ServiceType
 
 
 class DownloadService(ServiceTemplate[str]):
     def __init__(self):
-        super().__init__("download")
+        super().__init__(ServiceType.DOWNLOAD)
         self.video_downloader = VideoDownloader(self.logger)
 
     def get_input_file_path(self, video_paths):

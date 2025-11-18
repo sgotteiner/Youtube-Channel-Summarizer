@@ -7,15 +7,15 @@ from openai import AsyncOpenAI
 import tiktoken
 import logging
 import asyncio
+from src.utils.common_logger import log_success_by_video_id, log_error_by_video_id
+from src.constants.service_constants import CHUNK_TARGET_SIZE, TOKENCODER_ENCODING_NAME, DEFAULT_OPENAI_MODEL
+
 
 class OpenAISummarizerAgent:
     """
     An asynchronous class to handle text summarization using the OpenAI API.
     It supports chunking and recursive summarization for long texts.
     """
-    TOKEN_LIMIT = 4000
-    CHUNK_TARGET_SIZE = 3000
-
     def __init__(self, is_openai_runtime: bool = False, logger: Optional[logging.Logger] = None):
         """
         Initializes the OpenAISummarizerAgent.
@@ -24,9 +24,9 @@ class OpenAISummarizerAgent:
         self.logger = logger
         self.client = self._setup_api_client()
         try:
-            self.encoding = tiktoken.get_encoding("cl100k_base")
+            self.encoding = tiktoken.get_encoding(TOKENCODER_ENCODING_NAME)
         except Exception:
-            self.encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+            self.encoding = tiktoken.encoding_for_model(DEFAULT_OPENAI_MODEL)
 
     def _setup_api_client(self) -> Optional[AsyncOpenAI]:
         """Loads the OpenAI API key and creates an async client."""
@@ -49,7 +49,7 @@ class OpenAISummarizerAgent:
         chunks = []
         start = 0
         while start < len(tokens):
-            end = start + self.CHUNK_TARGET_SIZE
+            end = start + CHUNK_TARGET_SIZE
             chunk_tokens = tokens[start:end]
             chunks.append(self.encoding.decode(chunk_tokens))
             start = end
@@ -62,7 +62,7 @@ class OpenAISummarizerAgent:
         try:
             self.logger.info("Making an async call to the OpenAI API...")
             response = await self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model=DEFAULT_OPENAI_MODEL,
                 messages=[
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": f"Summarize this: {text}"}
@@ -73,20 +73,8 @@ class OpenAISummarizerAgent:
             self.logger.error(f"An error occurred during OpenAI API call: {e}")
             return None
 
-    async def _recursive_summarize(self, text: str) -> Optional[str]:
-        """
-        Recursively summarizes a long text by splitting it into chunks asynchronously.
-        """
-        token_count = self._get_token_count(text)
-        self.logger.info(f"Starting recursive summarization for text with {token_count} tokens.")
-
-        if token_count <= self.CHUNK_TARGET_SIZE:
-            prompt = "You are a summary assistant. Write a summary of the transcribed audio. Don't forget new lines."
-            return await self._summarize_text(text, prompt)
-
-        chunks = self._split_text_into_chunks(text)
-        self.logger.info(f"Text split into {len(chunks)} chunks for summarization.")
-
+    async def _process_chunk_summaries(self, chunks: List[str]) -> List[str]:
+        """Process all chunks concurrently and collect successful summaries."""
         # Process chunks concurrently for better performance
         tasks = []
         for i, chunk in enumerate(chunks):
@@ -105,6 +93,23 @@ class OpenAISummarizerAgent:
                 # Continue processing even if one chunk fails
             elif result:
                 summaries.append(result)
+        return summaries
+
+    async def _recursive_summarize(self, text: str) -> Optional[str]:
+        """
+        Recursively summarizes a long text by splitting it into chunks asynchronously.
+        """
+        token_count = self._get_token_count(text)
+        self.logger.info(f"Starting recursive summarization for text with {token_count} tokens.")
+
+        if token_count <= CHUNK_TARGET_SIZE:
+            prompt = "You are a summary assistant. Write a summary of the transcribed audio. Don't forget new lines."
+            return await self._summarize_text(text, prompt)
+
+        chunks = self._split_text_into_chunks(text)
+        self.logger.info(f"Text split into {len(chunks)} chunks for summarization.")
+
+        summaries = await self._process_chunk_summaries(chunks)
 
         if not summaries:
             self.logger.error("No successful summaries were generated from any chunks.")
@@ -129,7 +134,7 @@ class OpenAISummarizerAgent:
             self.logger.info("OpenAI runtime is OFF. Returning raw transcription as summary.")
             # Still log the completion status if video_id is provided
             if video_id:
-                self.logger.info("[%s] Summarization task completed successfully", video_id)
+                log_success_by_video_id(self.logger, video_id, "Summarization task completed successfully")
             return transcription
 
         result = await self._recursive_summarize(transcription)
@@ -137,8 +142,8 @@ class OpenAISummarizerAgent:
         # Log completion status with video_id if provided
         if video_id:
             if result:
-                self.logger.info("[%s] Summarization task completed successfully", video_id)
+                log_success_by_video_id(self.logger, video_id, "Summarization task completed successfully")
             else:
-                self.logger.error("[%s] Failed to generate summary", video_id)
+                log_error_by_video_id(self.logger, video_id, "Failed to generate summary")
 
         return result

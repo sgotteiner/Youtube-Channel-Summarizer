@@ -6,6 +6,7 @@ The new architecture uses microservices with RabbitMQ queues.
 import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from src.pipeline.VideoDiscoverer import VideoDiscoverer
 from src.pipeline.VideoDownloader import VideoDownloader
 from src.pipeline.AudioTranscriber import AudioTranscriber
 from src.pipeline.AudioExtractor import AudioExtractor

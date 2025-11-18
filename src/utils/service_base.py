@@ -5,10 +5,11 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 from src.utils.logger import setup_logging
-from src.utils.postgresql_client import postgres_client, Video, VideoStatus
+from src.utils.postgresql_client import postgres_client, Video
 from src.utils.queue_client import QueueClient
 from src.utils.event_publisher import EventPublisher
 from src.utils.kafka_producer import KafkaEventProducer
+from src.enums.service_enums import ProcessingStatus
 
 
 class ServiceBase(ABC):
@@ -41,7 +42,7 @@ class ServiceBase(ABC):
         if self.kafka_producer:
             self.kafka_producer.close()
 
-    async def update_video_status(self, video_id: str, status: VideoStatus, 
+    async def update_video_status(self, video_id: str, status: ProcessingStatus, 
                                   audio_file_path: Optional[str] = None, 
                                   video_file_path: Optional[str] = None):
         """Update video status in the database."""
@@ -93,7 +94,7 @@ class ServiceBase(ABC):
         
         try:
             # Publish to Kafka
-            self.kafka_producer.send_event(event_type.lower().replace(' ', '_'), event_payload)
+            self.kafka_producer.send_event(event_type, event_payload)
             success_kafka = True
         except Exception as e:
             self.logger.error(f"Failed to publish event '{event_type}' to Kafka: {e}")

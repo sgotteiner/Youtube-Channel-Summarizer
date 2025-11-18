@@ -3,9 +3,12 @@ import json
 import logging
 import time
 from threading import Lock
+from src.constants.service_constants import EVENTS_EXCHANGE_NAME
+from src.constants.time_constants import (RABBITMQ_BLOCKED_CONNECTION_TIMEOUT,
+                                         RABBITMQ_SOCKET_TIMEOUT)
 
 class EventPublisher:
-    def __init__(self, host='rabbitmq', exchange_name='events_exchange', logger=None):
+    def __init__(self, host='rabbitmq', exchange_name=EVENTS_EXCHANGE_NAME, logger=None):
         self.host = host
         self.exchange_name = exchange_name
         self.logger = logger or logging.getLogger(__name__)
@@ -22,8 +25,8 @@ class EventPublisher:
                 params = pika.ConnectionParameters(
                     host=self.host,
                     heartbeat=600,  # Enable heartbeat to detect connection loss
-                    blocked_connection_timeout=300,  # Timeout for blocked connections
-                    socket_timeout=10
+                    blocked_connection_timeout=RABBITMQ_BLOCKED_CONNECTION_TIMEOUT,  # Timeout for blocked connections
+                    socket_timeout=RABBITMQ_SOCKET_TIMEOUT
                 )
                 self.connection = pika.BlockingConnection(params)
                 self.channel = self.connection.channel()

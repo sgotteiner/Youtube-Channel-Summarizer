@@ -1,17 +1,15 @@
 """
 Audio Extraction Service - Extracts audio from video files using the service framework.
 """
-import datetime
 from pathlib import Path
 from src.pipeline.AudioExtractor import AudioExtractor
-from src.utils.file_manager import FileManager
 from src.patterns.ServiceTemplatePattern import ServiceTemplate
-from src.utils.postgresql_client import VideoStatus
 
 
 class AudioExtractionService(ServiceTemplate[Path]):
     def __init__(self):
-        super().__init__("audio_extraction")
+        from src.enums.service_enums import ServiceType
+        super().__init__(ServiceType.AUDIO_EXTRACTION)
         self.audio_extractor = AudioExtractor(self.logger)
 
     def get_input_file_path(self, video_paths):

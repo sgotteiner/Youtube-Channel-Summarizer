@@ -1,18 +1,14 @@
 """
 Transcription Service - Transcribes audio files using the service framework.
 """
-import datetime
-from pathlib import Path
 from src.pipeline.AudioTranscriber import AudioTranscriber
-from src.utils.file_manager import FileManager
 from src.patterns.ServiceTemplatePattern import ServiceTemplate
-from src.utils.postgresql_client import VideoStatus
-import aiofiles
 
 
 class TranscriptionService(ServiceTemplate[str]):
     def __init__(self):
-        super().__init__("transcription")
+        from src.enums.service_enums import ServiceType
+        super().__init__(ServiceType.TRANSCRIPTION)
         self.audio_transcriber = AudioTranscriber(self.logger)
 
     def get_input_file_path(self, video_paths):

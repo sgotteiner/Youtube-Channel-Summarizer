@@ -3,9 +3,11 @@ import json
 import logging
 import time
 from threading import Lock
+from src.constants.connection_constants import DEFAULT_RABBITMQ_HOST
+from src.constants.time_constants import RABBITMQ_BLOCKED_CONNECTION_TIMEOUT, RABBITMQ_SOCKET_TIMEOUT, RABBITMQ_HEARTBEAT_INTERVAL
 
 class QueueClient:
-    def __init__(self, host='rabbitmq', logger=None):
+    def __init__(self, host=DEFAULT_RABBITMQ_HOST, logger=None):
         self.host = host
         self.logger = logger or logging.getLogger(__name__)
         self.connection = None
@@ -20,9 +22,9 @@ class QueueClient:
                 # Create connection with proper parameters for stability
                 params = pika.ConnectionParameters(
                     host=self.host,
-                    heartbeat=600,  # Enable heartbeat to detect connection loss
-                    blocked_connection_timeout=300,  # Timeout for blocked connections
-                    socket_timeout=10
+                    heartbeat=RABBITMQ_HEARTBEAT_INTERVAL,  # Enable heartbeat to detect connection loss
+                    blocked_connection_timeout=RABBITMQ_BLOCKED_CONNECTION_TIMEOUT,  # Timeout for blocked connections
+                    socket_timeout=RABBITMQ_SOCKET_TIMEOUT
                 )
                 self.connection = pika.BlockingConnection(params)
                 self.channel = self.connection.channel()

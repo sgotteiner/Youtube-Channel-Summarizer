@@ -2,7 +2,8 @@
 Database abstraction layer for consistent operations across services.
 """
 from typing import Optional
-from src.utils.postgresql_client import postgres_client, Video, VideoStatus
+from src.utils.postgresql_client import postgres_client, Video
+from src.enums.service_enums import ProcessingStatus
 
 
 class DatabaseManager:
@@ -62,20 +63,15 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def update_video_status(self, video_id: str, status: VideoStatus,
-                           audio_file_path: Optional[str] = None,
-                           video_file_path: Optional[str] = None) -> bool:
+    def update_video_stage_and_status(self, video_id: str, stage, status) -> bool:
         """
-        Update video status and optionally file paths in the database.
-        Handles its own logging for success and failure.
-        Returns True if successful, False otherwise.
+        Update video stage and status in the database.
+        This works with the current Video model which has status as VideoStatus enum.
         """
-        updates = {"status": status}
-        if audio_file_path is not None:
-            updates["audio_file_path"] = audio_file_path
-        if video_file_path is not None:
-            updates["video_file_path"] = video_file_path
-        
+        updates = {
+            "stage": stage,
+            "status": status
+        }
         return self.update_video(video_id, **updates)
 
     def get_videos_by_job(self, job_id: str):
@@ -99,7 +95,7 @@ class DatabaseManager:
                 title=title,
                 upload_date=upload_date,
                 duration=duration,
-                status=VideoStatus.PENDING
+                status=ProcessingStatus.PROCESSING.value
             )
             session.add(new_video)
             session.commit()

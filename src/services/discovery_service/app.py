@@ -5,14 +5,13 @@ import datetime
 from typing import Optional
 from src.pipeline.VideoMetadataFetcher import VideoMetadataFetcher
 from src.pipeline.VideoDiscoverer import VideoDiscoverer
-from src.utils.file_manager import FileManager
 from src.patterns.ServiceTemplatePattern import ServiceTemplate
-from src.utils.postgresql_client import VideoStatus
+from src.enums.service_enums import ServiceType
 
 
 class DiscoveryService(ServiceTemplate[dict]):
     def __init__(self):
-        super().__init__("discovery")
+        super().__init__(ServiceType.DISCOVERY)
 
     async def perform_specific_operation(self, video, input_file_path, video_paths, video_id: str):
         """
@@ -60,7 +59,7 @@ class DiscoveryService(ServiceTemplate[dict]):
                 continue  # Skip if creation failed
 
             # Send message to next service in the pipeline
-            if not self.queue_manager.send_message("download_queue", {"video_id": discovered_video_id}, discovered_video_id):
+            if not self.queue_manager.send_message(ServiceType.DOWNLOAD, {"video_id": discovered_video_id}, discovered_video_id):
                 continue  # Skip if sending message failed
 
             processed_count += 1

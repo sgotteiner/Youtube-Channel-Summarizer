@@ -3,14 +3,16 @@ Logging Service - Consumes events from the event exchange and logs them.
 """
 import json
 from src.utils.logger import setup_logging
+from src.constants.service_constants import EVENTS_EXCHANGE_NAME
+from src.constants.connection_constants import DEFAULT_RABBITMQ_HOST
 
 
 class LoggingService:
     def __init__(self):
         self.logger = setup_logging()
-        self.host = 'rabbitmq'
-        self.exchange_name = 'events_exchange'
-        self.queue_name = 'logging_service_queue'
+        self.host = DEFAULT_RABBITMQ_HOST
+        self.exchange_name = EVENTS_EXCHANGE_NAME
+        self.queue_name = 'logging_service'
 
     def event_callback(self, channel, method, properties, body):
         """

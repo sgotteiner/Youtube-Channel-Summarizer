@@ -1,24 +1,19 @@
 import os
-from sqlalchemy import create_engine, Column, String, Float, Enum
+from sqlalchemy import create_engine, Column, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import enum
 import logging
+from src.constants.time_constants import DB_POOL_RECYCLE_SECONDS, POSTGRES_CONNECT_TIMEOUT
+from src.constants.connection_constants import (
+    DEFAULT_POSTGRES_USER,
+    DEFAULT_POSTGRES_PASSWORD,
+    DEFAULT_POSTGRES_HOST,
+    DEFAULT_POSTGRES_PORT,
+    DEFAULT_POSTGRES_DB
+)
+from src.enums.service_enums import ServiceType, ProcessingStatus
 
 logger = logging.getLogger(__name__)
-
-# Define an enum for the processing status
-class VideoStatus(enum.Enum):
-    PENDING = "PENDING"
-    DOWNLOADING = "DOWNLOADING"
-    DOWNLOADED = "DOWNLOADED"
-    AUDIO_EXTRACTING = "AUDIO_EXTRACTING"
-    AUDIO_EXTRACTED = "AUDIO_EXTRACTED"
-    TRANSCRIBING = "TRANSCRIBING"
-    TRANSCRIBED = "TRANSCRIBED"
-    SUMMARIZING = "SUMMARIZING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
 
 Base = declarative_base()
 
@@ -31,7 +26,8 @@ class Video(Base):
     title = Column(String, nullable=False)
     upload_date = Column(String) # Keep as string to match existing data
     duration = Column(Float)
-    status = Column(Enum(VideoStatus), default=VideoStatus.PENDING, nullable=False, index=True)
+    stage = Column(String, default=ServiceType.DISCOVERY.name, nullable=False, index=True)  # Tracks which service is currently handling the video
+    status = Column(String, default=ProcessingStatus.PROCESSING.value, nullable=False, index=True)  # Tracks the processing status (PROCESSING, COMPLETED, FAILED)
     video_file_path = Column(String)
     audio_file_path = Column(String)
     working_file_path = Column(String)
@@ -43,16 +39,22 @@ class Video(Base):
 class PostgresClient:
     def __init__(self, db_url=None):
         if db_url is None:
-            db_url = os.environ.get("POSTGRES_URL", "postgresql://user1:password1@postgres:5432/youtube_summarizer")
+            # Build the database URL from individual environment variables with sensible defaults
+            user = os.getenv('POSTGRES_USER', DEFAULT_POSTGRES_USER)
+            password = os.getenv('POSTGRES_PASSWORD', DEFAULT_POSTGRES_PASSWORD)
+            host = os.getenv('POSTGRES_HOST', DEFAULT_POSTGRES_HOST)
+            port = os.getenv('POSTGRES_PORT', DEFAULT_POSTGRES_PORT)
+            db_name = os.getenv('POSTGRES_DB', DEFAULT_POSTGRES_DB)
+            db_url = f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
 
         # Configure the engine with connection pooling and proper disposal
         self.engine = create_engine(
             db_url,
             pool_pre_ping=True,  # Validates connections before use
-            pool_recycle=3600,   # Recycle connections after 1 hour
+            pool_recycle=DB_POOL_RECYCLE_SECONDS,   # Recycle connections after 1 hour
             echo=False,          # Set to True for SQL debugging
             connect_args={
-                "connect_timeout": 10,  # Timeout for connections
+                "connect_timeout": POSTGRES_CONNECT_TIMEOUT,  # Timeout for connections
             }
         )
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)

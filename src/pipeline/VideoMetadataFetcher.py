@@ -67,20 +67,6 @@ class VideoMetadataFetcher:
     def fetch_video_details(self, video_id: str) -> Optional[Dict]:
         """
         Fetches the full, detailed metadata for a single video.
-        """
-        self.logger.debug(f"Fetching full metadata for video ID: {video_id}...")
-        ydl_opts = {"quiet": True, "skip_download": True}
-        try:
-            with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-                return self._parse_video_info(info)
-        except Exception as e:
-            self.logger.warning(f"Failed to fetch metadata for video ID {video_id}: {e}")
-            return None
-
-    def fetch_video_details(self, video_id: str) -> Optional[Dict]:
-        """
-        Fetches the full, detailed metadata for a single video.
 
         Args:
             video_id (str): The video ID to fetch details for

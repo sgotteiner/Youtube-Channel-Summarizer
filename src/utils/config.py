@@ -8,6 +8,7 @@ and clear error handling for the application's configuration.
 import os
 from typing import Optional
 from dotenv import load_dotenv
+from src.constants.service_constants import DEFAULT_MAX_VIDEO_LENGTH
 
 class Config:
     """
@@ -26,7 +27,7 @@ class Config:
         self.channel_name = os.getenv('CHANNEL_NAME', 'Tech With Tim')
         
         self.num_videos_to_process = self._get_optional_int('NUM_VIDEOS_TO_PROCESS', 2)
-        self.max_video_length = self._get_optional_int('MAX_VIDEO_LENGTH', 10)
+        self.max_video_length = self._get_optional_int('MAX_VIDEO_LENGTH', DEFAULT_MAX_VIDEO_LENGTH)
 
         self.is_openai_runtime = self._get_bool('IS_OPENAI_RUNTIME', False)
         self.is_save_only_summaries = self._get_bool('IS_SAVE_ONLY_SUMMARIES', True)

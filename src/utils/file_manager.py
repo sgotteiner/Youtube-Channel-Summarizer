@@ -8,7 +8,13 @@ logic and ensures consistency across the application.
 import os
 import re
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
+from src.constants.service_constants import (
+    MAX_FILENAME_LENGTH,
+    VIDEO_FILE_EXTENSION,
+    AUDIO_FILE_EXTENSION,
+    TRANSCRIPTION_FILE_EXTENSION
+)
 
 class FileManager:
     """
@@ -52,7 +58,7 @@ class FileManager:
         sanitized = re.sub(r'[\\/:*?"<>|]', '', filename)
         # Replace spaces with underscores as requested
         sanitized = sanitized.replace(' ', '_')
-        return sanitized[:100]
+        return sanitized[:MAX_FILENAME_LENGTH]
 
     @staticmethod
     def get_base_filename(video_data: Dict) -> str:
@@ -81,10 +87,10 @@ class FileManager:
         """
         base_filename = self.get_base_filename(video_data)
         return {
-            "video": self.paths['videos'] / f"{base_filename}.mp4",
-            "audio": self.paths['audios'] / f"{base_filename}.wav",
-            "transcription": self.paths['transcriptions'] / f"{base_filename}.txt",
-            "summary": self.paths['summaries'] / f"{base_filename}.txt",
+            "video": self.paths['videos'] / f"{base_filename}{VIDEO_FILE_EXTENSION}",
+            "audio": self.paths['audios'] / f"{base_filename}{AUDIO_FILE_EXTENSION}",
+            "transcription": self.paths['transcriptions'] / f"{base_filename}{TRANSCRIPTION_FILE_EXTENSION}",
+            "summary": self.paths['summaries'] / f"{base_filename}{TRANSCRIPTION_FILE_EXTENSION}",
         }
 
     def does_summary_exist(self, video_id: str) -> bool:
@@ -98,7 +104,7 @@ class FileManager:
         Returns:
             bool: True if a summary file for the video exists, False otherwise.
         """
-        pattern = f"*-{video_id}.txt"
+        pattern = f"*-{video_id}{TRANSCRIPTION_FILE_EXTENSION}"
         return any(self.summaries_dir.glob(pattern))
 
     def cleanup_intermediate_files(self, video_paths: Dict[str, Path]):
@@ -112,11 +118,23 @@ class FileManager:
         for file_type, file_path in video_paths.items():
             if file_type == "summary":
                 continue
-            
+
             if file_path.exists():
                 try:
                     os.remove(file_path)
                     self.logger.info(f"Deleted intermediate file: {file_path}")
                 except Exception as e:
                     self.logger.error(f"Error deleting file {file_path}: {e}")
+
+    def validate_input_file_path(self, file_path: Path, video_id: str) -> Optional[Path]:
+        """Validate that the specified file path exists and return it as Path object."""
+        if not file_path:
+            self.logger.error("[%s] File path is None", video_id)
+            return None
+
+        if not file_path.exists():
+            self.logger.error("[%s] File does not exist: %s", video_id, file_path)
+            return None
+
+        return file_path
 

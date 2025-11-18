@@ -3,7 +3,6 @@ Module for discovering new YouTube videos to be processed (service architecture 
 """
 from typing import List, Dict, Optional
 import logging
-from src.utils.db_manager import DatabaseManager
 
 class VideoDiscoverer:
     """

@@ -18,7 +18,6 @@ class BaseService(AsyncWorker, ABC):
         self.db_manager = manager_factory.create_database_manager(self.logger)
         self.queue_manager = manager_factory.create_queue_manager(self.logger)
         self.event_manager = manager_factory.create_event_manager(self.logger)
-        from src.utils.service_logger import ServiceLogger
         self.service_logger = ServiceLogger(self.logger)
 
     async def initialize(self):

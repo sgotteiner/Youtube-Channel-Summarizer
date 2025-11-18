@@ -6,6 +6,7 @@ from kafka import KafkaConsumer
 from kafka.errors import KafkaError
 import time
 from src.utils.logger import setup_logging
+from src.constants.connection_constants import DEFAULT_KAFKA_BOOTSTRAP_SERVERS
 
 
 class AnalyticsService:
@@ -28,7 +29,7 @@ class AnalyticsService:
             try:
                 self.consumer = KafkaConsumer(
                     *self.topics,
-                    bootstrap_servers='kafka:29092',
+                    bootstrap_servers=DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
                     auto_offset_reset='earliest',
                     enable_auto_commit=True,
                     group_id='analytics-group',

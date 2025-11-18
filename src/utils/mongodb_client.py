@@ -1,14 +1,15 @@
 import os
 from pymongo import MongoClient
 import logging
+from src.constants.service_constants import MONGO_URL_ENV, DEFAULT_MONGO_URL, APP_NAME
 
 logger = logging.getLogger(__name__)
 
 class MongoDBClient:
-    def __init__(self, db_url=None, db_name='youtube_summarizer'):
+    def __init__(self, db_url=None, db_name=APP_NAME):  # Default name, but can be configured
         # Use Docker service name if no URL provided
         if db_url is None:
-            db_url = os.environ.get("MONGO_URL", "mongodb://mongo:27017/")
+            db_url = os.environ.get(MONGO_URL_ENV, DEFAULT_MONGO_URL)
         
         try:
             self.client = MongoClient(db_url)

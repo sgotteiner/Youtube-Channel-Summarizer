@@ -1,24 +1,50 @@
 """
 Module for downloading YouTube videos and captions.
 """
-import re
 from pathlib import Path
 from typing import Optional
 import logging
 from pytubefix import YouTube
 from yt_dlp import YoutubeDL
+from src.utils.common_logger import log_success_by_video_id, log_error_by_video_id, log_warning_by_video_id, sanitize_filename
+from src.constants.service_constants import VIDEO_FILE_EXTENSION, CAPTION_FILE_EXTENSION
+
 
 class VideoDownloader:
     """Handles the downloading of a single YouTube video and its captions."""
     def __init__(self, logger: logging.Logger):
         self.logger = logger
 
-    def _sanitize_filename(self, filename: str) -> str:
-        """Removes illegal characters from a filename and replaces spaces with underscores for consistency with FileManager."""
-        sanitized = re.sub(r'[\\/:*?"<>|]', '', filename)
-        # Also replace spaces with underscores to maintain consistency with FileManager
-        sanitized = sanitized.replace(' ', '_')
-        return sanitized[:100]
+
+    def _check_file_exists_and_log(self, video_filepath: Path, video_title: str, video_id: str) -> Optional[Path]:
+        """Check if the video file already exists and log appropriately."""
+        if video_filepath.exists():
+            self.logger.info(f"Video '{video_title}' already exists. Skipping download.")
+            # Log the completion status with video_id format too
+            log_success_by_video_id(self.logger, video_id, "Video downloaded successfully to: %s", video_filepath)
+            return video_filepath
+        return None
+
+    def _get_youtube_stream(self, youtube_video_url: str) -> Optional:
+        """Get the YouTube video stream."""
+        try:
+            yt = YouTube(youtube_video_url)
+            video = yt.streams.filter(file_extension='mp4', progressive=True).first()
+            return video
+        except Exception as e:
+            self.logger.error(f'Error accessing YouTube video {youtube_video_url}: {e}')
+            return None
+
+    def _download_stream(self, video_stream, path_to_save_video: Path, sanitized_filename: str) -> bool:
+        """Download the YouTube video stream to the specified location."""
+        try:
+            self.logger.info(f"Downloading video to {path_to_save_video / sanitized_filename}...")
+            video_stream.download(output_path=str(path_to_save_video), filename=sanitized_filename)
+            self.logger.info("Download successful.")
+            return True
+        except Exception as e:
+            self.logger.error(f'Error downloading video: {e}')
+            return False
 
     def download_video(self, youtube_video_url: str, video_title: str, upload_date: str, video_id: str, path_to_save_video: Path) -> Optional[Path]:
         """
@@ -34,35 +60,30 @@ class VideoDownloader:
         Returns:
             Optional[Path]: Path to the downloaded video, or None if failed
         """
-        sanitized_filename = f"{self._sanitize_filename(video_title)}-{upload_date}-{video_id}.mp4"
+        sanitized_filename = f"{sanitize_filename(video_title)}-{upload_date}-{video_id}{VIDEO_FILE_EXTENSION}"
         video_filepath = path_to_save_video / sanitized_filename
 
-        if video_filepath.exists():
-            self.logger.info(f"Video '{video_title}' already exists. Skipping download.")
-            # Log the completion status with video_id format too
-            self.logger.info("[%s] Video downloaded successfully to: %s", video_id, video_filepath)
-            return video_filepath
+        # Check if file already exists
+        existing_file = self._check_file_exists_and_log(video_filepath, video_title, video_id)
+        if existing_file:
+            return existing_file
 
-        try:
-            yt = YouTube(youtube_video_url)
-            video = yt.streams.filter(file_extension='mp4', progressive=True).first()
-            if not video:
-                self.logger.warning(f"No suitable MP4 stream for {youtube_video_url}. Skipping.")
-                # Log the failure with video_id format
-                self.logger.error("[%s] Failed to download video", video_id)
-                return None
+        # Get the YouTube video stream
+        video = self._get_youtube_stream(youtube_video_url)
+        if not video:
+            log_error_by_video_id(self.logger, video_id, "No suitable MP4 stream found. Failed to download video")
+            return None
 
-            self.logger.info(f"Downloading '{video_title}' to {video_filepath}...")
-            video.download(output_path=str(path_to_save_video), filename=sanitized_filename)
-            self.logger.info(f"Download successful for '{video_title}'.")
+        # Download the video
+        success = self._download_stream(video, path_to_save_video, sanitized_filename)
 
+        if success:
             # Log the completion status with video_id format
-            self.logger.info("[%s] Video downloaded successfully to: %s", video_id, video_filepath)
+            log_success_by_video_id(self.logger, video_id, "Video downloaded successfully to: %s", video_filepath)
             return video_filepath
-        except Exception as e:
-            self.logger.error(f'Error downloading {youtube_video_url}: {e}')
+        else:
             # Log the failure with video_id format
-            self.logger.error("[%s] Failed to download video", video_id)
+            log_error_by_video_id(self.logger, video_id, "Failed to download video")
             return None
 
     def download_captions(self, video_id: str, destination_path: Path) -> Optional[Path]:
@@ -88,11 +109,11 @@ class VideoDownloader:
                 ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
 
             # Search for the downloaded .vtt file
-            for file in destination_path.glob(f'*-{video_id}.en.vtt'):
+            for file in destination_path.glob(f'*-{video_id}{CAPTION_FILE_EXTENSION}'):
                 self.logger.info(f"Successfully downloaded captions to {file}")
                 return file
 
-            self.logger.warning(f"Caption download was attempted for {video_id}, but no VTT file was found.")
+            log_warning_by_video_id(self.logger, video_id, "Caption download was attempted but no VTT file was found.")
             return None
         except Exception as e:
             self.logger.error(f"An error occurred while downloading captions for {video_id}: {e}")

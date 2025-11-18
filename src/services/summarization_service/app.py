@@ -1,19 +1,16 @@
 """
 Summarization Service - Summarizes transcriptions using the service framework.
 """
-import datetime
-from pathlib import Path
 from src.pipeline.AgentSummarizer import OpenAISummarizerAgent
-from src.utils.file_manager import FileManager
 from src.patterns.ServiceTemplatePattern import ServiceTemplate
-from src.utils.postgresql_client import VideoStatus
 from src.utils.mongodb_client import mongodb_client
 import aiofiles
 
 
 class SummarizationService(ServiceTemplate[str]):
     def __init__(self):
-        super().__init__("summarization")
+        from src.enums.service_enums import ServiceType
+        super().__init__(ServiceType.SUMMARIZATION)
         self.summarizer_agent = OpenAISummarizerAgent(is_openai_runtime=True, logger=self.logger)
 
     def get_input_file_path(self, video_paths):
