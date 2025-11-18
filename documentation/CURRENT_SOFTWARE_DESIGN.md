@@ -157,3 +157,20 @@ Services build event payloads using a consistent approach:
 - Automatic inclusion of additional fields like character counts, file paths, etc.
 
 This design ensures all components work together harmoniously while maintaining the separation of concerns necessary for a scalable microservices architecture.
+
+## Database Mechanism
+
+### Video Status Tracking
+The system now uses a dual-field approach in the database to track the processing state:
+
+- `stage` field: Tracks which service in the pipeline is currently handling the video (discovery, download, audio_extraction, transcription, summarization)
+- `status` field: Tracks the processing state of the video (PENDING, PROCESSING, COMPLETED, FAILED, etc.)
+
+This approach allows better visibility into both where a video is in the pipeline (stage) and what is happening to it (status).
+
+### ServiceType Enum Integration
+The ServiceType enum directly drives the database updates:
+- Each service knows its own stage name using the enum's string value
+- Progression to the next stage is determined by the enum's numerical value
+- The database layer properly accepts string values from the ServiceType enum through enum.name or enum.value properties
+- When transitioning between services, the stage field is updated to the next service in the pipeline, and the status is set appropriately (PROCESSING for the new stage, COMPLETED for the current service, etc.)
