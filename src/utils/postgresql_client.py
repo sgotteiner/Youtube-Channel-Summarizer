@@ -28,9 +28,6 @@ class Video(Base):
     duration = Column(Float)
     stage = Column(String, default=ServiceType.DISCOVERY.name, nullable=False, index=True)  # Tracks which service is currently handling the video
     status = Column(String, default=ProcessingStatus.PROCESSING.value, nullable=False, index=True)  # Tracks the processing status (PROCESSING, COMPLETED, FAILED)
-    video_file_path = Column(String)
-    audio_file_path = Column(String)
-    working_file_path = Column(String)
 
     def __repr__(self):
         return f"<Video(id='{self.id}', title='{self.title}', status='{self.status}')>"
@@ -65,46 +62,10 @@ class PostgresClient:
             # Create tables first
             Base.metadata.create_all(bind=self.engine)
 
-            # Update schema with any missing columns or enum values
-            self._update_schema()
-
-            logger.info("PostgreSQL tables created/updated successfully.")
+            logger.info("PostgreSQL tables created successfully.")
         except Exception as e:
             logger.error(f"Error creating PostgreSQL tables: {e}")
 
-    def _update_schema(self):
-        """Add missing columns and enum values to the database schema."""
-        from sqlalchemy import text
-        try:
-            with self.engine.connect() as conn:
-                # Add missing enum values
-                try:
-                    conn.execute(text("ALTER TYPE videostatus ADD VALUE IF NOT EXISTS 'AUDIO_EXTRACTING';"))
-                except Exception:
-                    # If the enum value already exists or database doesn't support this syntax
-                    pass
-
-                # Add missing columns if they don't exist
-                try:
-                    # Check if working_file_path column exists
-                    result = conn.execute(text("""
-                        SELECT column_name 
-                        FROM information_schema.columns 
-                        WHERE table_name='videos' AND column_name='working_file_path'
-                    """))
-                    exists = result.fetchone() is not None
-                    
-                    if not exists:
-                        conn.execute(text("ALTER TABLE videos ADD COLUMN working_file_path VARCHAR;"))
-                        logger.info("Added working_file_path column to videos table")
-                except Exception as e:
-                    logger.warning(f"Could not update schema (working_file_path): {e}")
-
-                # Commit the transaction
-                conn.commit()
-        except Exception as e:
-            logger.warning(f"Could not update database schema: {e}")
-            # This is not critical for basic functionality, just log and continue
 
     def get_session(self):
         return self.SessionLocal()

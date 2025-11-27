@@ -65,7 +65,7 @@ class ServiceTemplate(Generic[T], BaseService, abc.ABC):
         """Update video status to IN_PROGRESS if video_id is present in data."""
         if "video_id" in data:
             from src.enums.service_enums import ProcessingStatus
-            if not self.db_manager.update_video_stage_and_status(data["video_id"], self.service_type, ProcessingStatus.PROCESSING.value):
+            if not self.db_manager.update_video_stage_and_status(data["video_id"], self.service_type.name, ProcessingStatus.PROCESSING.value):
                 return False
         return True
 

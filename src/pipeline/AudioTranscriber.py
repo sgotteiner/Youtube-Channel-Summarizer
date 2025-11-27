@@ -77,6 +77,7 @@ class AudioTranscriber:
         Returns:
             str: The transcribed text, or an error/unintelligible message.
         """
+        self.logger.info(f"Chunk {chunk_index}: Starting transcription...")
         try:
             with sr.AudioFile(chunk_filename) as source:
                 audio = self.recognizer.record(source)
