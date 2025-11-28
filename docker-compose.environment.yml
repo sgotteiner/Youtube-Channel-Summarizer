@@ -23,14 +23,6 @@ services:
     depends_on:
       - base_requirements
 
-  audio_extraction_service_requirements:
-    build:
-      context: .
-      dockerfile: docker/images/services/audio_extraction_service/Dockerfile.service_requirements
-    image: youtube-channel-summarizer-audio-extraction-service-requirements:latest
-    depends_on:
-      - base_requirements
-
   transcription_service_requirements:
     build:
       context: .

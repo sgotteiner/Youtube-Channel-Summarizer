@@ -64,25 +64,6 @@ services:
     networks:
       - youtube-summarizer-net
 
-  audio_extraction_service:
-    build:
-      context: .
-      dockerfile: docker/images/services/audio_extraction_service/Dockerfile.service_code
-    image: youtube-channel-summarizer-audio-extraction-service-code:latest
-    depends_on:
-      audio_extraction_service_requirements:
-        condition: service_started
-      rabbitmq:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    volumes:
-      - shared_data:/app/data
-    networks:
-      - youtube-summarizer-net
-
   transcription_service:
     build:
       context: .

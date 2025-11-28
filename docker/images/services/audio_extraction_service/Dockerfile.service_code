@@ -1,9 +1,0 @@
-FROM youtube-channel-summarizer-audio-extraction-service-requirements:latest
-
-WORKDIR /app
-
-COPY src /app/src
-
-ENV PYTHONPATH=/app
-
-CMD ["python", "src/services/audio_extraction_service/app.py"]

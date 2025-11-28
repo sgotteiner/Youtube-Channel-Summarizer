@@ -1,7 +1,0 @@
-FROM youtube-channel-summarizer-base-requirements:latest
-
-WORKDIR /app
-
-COPY docker/images/services/audio_extraction_service/requirements.txt .
-
-RUN pip install --no-cache-dir -r requirements.txt

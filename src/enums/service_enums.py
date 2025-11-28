@@ -5,9 +5,8 @@ class ServiceType(Enum):
     """Enumeration for service types using numerical indexes."""
     DISCOVERY = 0
     DOWNLOAD = 1
-    AUDIO_EXTRACTION = 2
-    TRANSCRIPTION = 3
-    SUMMARIZATION = 4
+    TRANSCRIPTION = 2
+    SUMMARIZATION = 3
 
 class ProcessingStatus(Enum):
     """Enum representing the processing status of a video."""

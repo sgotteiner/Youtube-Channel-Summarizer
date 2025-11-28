@@ -2,6 +2,12 @@ FROM youtube-channel-summarizer-base-requirements:latest
 
 WORKDIR /app
 
+# Install minimal FFmpeg with only necessary components
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY docker/images/services/download_service/requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt

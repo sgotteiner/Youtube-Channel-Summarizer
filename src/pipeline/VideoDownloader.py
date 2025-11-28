@@ -1,89 +1,80 @@
 """
-Module for downloading YouTube videos and captions.
+Module for downloading YouTube audio and captions.
 """
 from pathlib import Path
 from typing import Optional
 import logging
-from pytubefix import YouTube
 from yt_dlp import YoutubeDL
 from src.utils.common_logger import log_success_by_video_id, log_error_by_video_id, log_warning_by_video_id, sanitize_filename
-from src.constants.service_constants import VIDEO_FILE_EXTENSION, CAPTION_FILE_EXTENSION
+from src.constants.service_constants import AUDIO_FILE_EXTENSION, CAPTION_FILE_EXTENSION
 
 
-class VideoDownloader:
-    """Handles the downloading of a single YouTube video and its captions."""
+class AudioDownloader:
+    """Handles the downloading of audio from YouTube videos and captions."""
     def __init__(self, logger: logging.Logger):
         self.logger = logger
 
-
-    def _check_file_exists_and_log(self, video_filepath: Path, video_title: str, video_id: str) -> Optional[Path]:
-        """Check if the video file already exists and log appropriately."""
-        if video_filepath.exists():
-            self.logger.info(f"Video '{video_title}' already exists. Skipping download.")
+    def _check_file_exists_and_log(self, filepath: Path, title: str, video_id: str, file_type: str) -> Optional[Path]:
+        """Check if the file already exists and log appropriately."""
+        if filepath.exists():
+            self.logger.info(f"{file_type} '{title}' already exists. Skipping download.")
             # Log the completion status with video_id format too
-            log_success_by_video_id(self.logger, video_id, "Video downloaded successfully to: %s", video_filepath)
-            return video_filepath
+            log_success_by_video_id(self.logger, video_id, f"{file_type} downloaded successfully to: %s", filepath)
+            return filepath
         return None
 
-    def _get_youtube_stream(self, youtube_video_url: str) -> Optional:
-        """Get the YouTube video stream."""
-        try:
-            yt = YouTube(youtube_video_url)
-            video = yt.streams.filter(file_extension='mp4', progressive=True).first()
-            return video
-        except Exception as e:
-            self.logger.error(f'Error accessing YouTube video {youtube_video_url}: {e}')
-            return None
-
-    def _download_stream(self, video_stream, path_to_save_video: Path, sanitized_filename: str) -> bool:
-        """Download the YouTube video stream to the specified location."""
-        try:
-            self.logger.info(f"Downloading video to {path_to_save_video / sanitized_filename}...")
-            video_stream.download(output_path=str(path_to_save_video), filename=sanitized_filename)
-            self.logger.info("Download successful.")
-            return True
-        except Exception as e:
-            self.logger.error(f'Error downloading video: {e}')
-            return False
-
-    def download_video(self, youtube_video_url: str, video_title: str, upload_date: str, video_id: str, path_to_save_video: Path) -> Optional[Path]:
+    def download_audio(self, youtube_video_url: str, video_title: str, upload_date: str, video_id: str, path_to_save_audio: Path) -> Optional[Path]:
         """
-        Downloads a single video from a given YouTube URL using the name-date-id format.
+        Downloads audio from a YouTube URL and converts to WAV format using yt-dlp.
 
         Args:
             youtube_video_url (str): The YouTube URL to download from
-            video_title (str): Title of the video
+            video_title (str): Title of the video (for filename)
             upload_date (str): Upload date of the video
             video_id (str): The video ID for logging purposes
-            path_to_save_video (Path): Path where the video will be saved
+            path_to_save_audio (Path): Path where the audio will be saved
 
         Returns:
-            Optional[Path]: Path to the downloaded video, or None if failed
+            Optional[Path]: Path to the downloaded audio in WAV format, or None if failed
         """
-        sanitized_filename = f"{sanitize_filename(video_title)}-{upload_date}-{video_id}{VIDEO_FILE_EXTENSION}"
-        video_filepath = path_to_save_video / sanitized_filename
+        sanitized_filename = f"{sanitize_filename(video_title)}-{upload_date}-{video_id}"
+        # Note: yt-dlp will add the .wav extension automatically
+        audio_filepath = path_to_save_audio / f"{sanitized_filename}.wav"
 
         # Check if file already exists
-        existing_file = self._check_file_exists_and_log(video_filepath, video_title, video_id)
+        existing_file = self._check_file_exists_and_log(audio_filepath, video_title, video_id, "Audio")
         if existing_file:
             return existing_file
 
-        # Get the YouTube video stream
-        video = self._get_youtube_stream(youtube_video_url)
-        if not video:
-            log_error_by_video_id(self.logger, video_id, "No suitable MP4 stream found. Failed to download video")
-            return None
+        ydl_opts = {
+            'format': 'bestaudio/best',  # Download the best available audio
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'wav',      # Convert to WAV format
+                'preferredquality': '0',      # Highest quality
+            }],
+            'postprocessor_args': [
+                '-ar', '16000',  # Optional: set audio sampling rate
+            ],
+            'prefer_ffmpeg': True,
+            'extractaudio': True,
+            'keepvideo': False,
+            'outtmpl': str(path_to_save_audio / f'{sanitized_filename}.%(ext)s'),  # Output path with filename
+        }
 
-        # Download the video
-        success = self._download_stream(video, path_to_save_video, sanitized_filename)
+        try:
+            self.logger.info(f"Downloading audio to {audio_filepath}...")
+            with YoutubeDL(ydl_opts) as ydl:
+                ydl.download([youtube_video_url])
 
-        if success:
+            self.logger.info("Audio download and conversion successful.")
+
             # Log the completion status with video_id format
-            log_success_by_video_id(self.logger, video_id, "Video downloaded successfully to: %s", video_filepath)
-            return video_filepath
-        else:
-            # Log the failure with video_id format
-            log_error_by_video_id(self.logger, video_id, "Failed to download video")
+            log_success_by_video_id(self.logger, video_id, "Audio downloaded successfully to: %s", audio_filepath)
+            return audio_filepath
+        except Exception as e:
+            self.logger.error(f'Error downloading or converting audio: {e}')
+            log_error_by_video_id(self.logger, video_id, "Failed to download or convert audio")
             return None
 
     def download_captions(self, video_id: str, destination_path: Path) -> Optional[Path]:
