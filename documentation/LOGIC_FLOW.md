@@ -28,37 +28,51 @@ graph TD
 
     M --> N[Process Videos];
 
-    subgraph Video Processing
-        N --> O{For each valid video};
-        O --> P{Local transcription file exists?};
-        P -- Yes --> Z[Use existing transcription];
-        P -- No --> Q{Video has captions?};
-        Q -- Yes --> R[Attempt to download captions];
+    subgraph Service Pipeline
+        N --> O[Discovery Service processes video];
+        O --> O2[Discovery Service sends video with has_captions flag to Download Service];
+        O2 --> P[Download Service receives video];
+        P --> Q{Does video have captions available?};
+        Q -- Yes --> R[Download Service attempts to download captions];
         R --> S{Caption download successful?};
-        S -- Yes --> Z;
-        S -- No --> T[Fallback: Transcribe from audio];
+        S -- Yes --> S2[Process captions to transcription];
+        S -- No --> T[Download Service fallback: download audio];
         Q -- No --> T;
-        T --> T2[Download Video -> Extract Audio -> Transcribe Audio];
-        T2 --> Z;
+        T --> T2[Download audio directly];
+        S2 --> U{Update next stage to Summarization};
+        T2 --> V{Update next stage to Transcription};
+        U --> W[Send to Summarization Service];
+        V --> X[Send to Transcription Service];
     end
 
-    subgraph Summarization
-        Z --> AA{IS_OPENAI_RUNTIME is True?};
-        AA -- No --> AB[Use raw transcription as summary];
-        AA -- Yes --> AC[Check transcription token count];
-        AC --> AD{Is token count > CHUNK_TARGET_SIZE?};
-        AD -- Yes --> AE[Summarize in chunks recursively];
-        AD -- No --> AF[Summarize directly];
-        AE --> AG[Final Summary];
-        AF --> AG;
-        AB --> AG;
+    subgraph Transcription Service (if needed)
+        X --> Y[Download Service has downloaded audio];
+        Y --> Z[Transcription Service receives audio];
+        Z --> Z1[Transcription Service converts audio to text];
+        Z1 --> Z2[Transcription Service saves transcription];
+        Z2 --> Z3[Transcription Service sends to Summarization Service];
+    end
+
+    subgraph Summarization Service
+        W --> AA[Summarization Service receives transcription (from captions)];
+        Z3 --> BB[Summarization Service receives transcription (from audio)];
+        AA --> CC{IS_OPENAI_RUNTIME is True?};
+        BB --> CC;
+        CC -- No --> DD[Use raw transcription as summary];
+        CC -- Yes --> EE[Check transcription token count];
+        EE --> FF{Is token count > CHUNK_TARGET_SIZE?};
+        FF -- Yes --> GG[Summarize in chunks recursively];
+        FF -- No --> HH[Summarize directly];
+        GG --> II[Final Summary];
+        HH --> II;
+        DD --> II;
     end
 
     subgraph Cleanup
-        AG --> AH[Save final summary];
-        AH --> AI{IS_SAVE_ONLY_SUMMARIES is True?};
-        AI -- Yes --> AJ[Delete intermediate files: video, audio, transcription];
-        AI -- No --> AK[End];
-        AJ --> AK;
+        II --> JJ[Save final summary];
+        JJ --> KK{IS_SAVE_ONLY_SUMMARIES is True?};
+        KK -- Yes --> LL[Delete intermediate files: video, audio, transcription];
+        KK -- No --> MM[End];
+        LL --> MM;
     end
 ```

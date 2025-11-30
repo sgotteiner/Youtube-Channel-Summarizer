@@ -1,7 +1,7 @@
 # Current System Architecture
 
 ## Overview
-The YouTube Channel Summarizer has been transformed from a monolithic application to a microservices architecture with design patterns. The primary focus of the recent refactoring was to eliminate code duplication and standardize the service interfaces.
+The YouTube Channel Summarizer has been transformed from a monolithic application to a microservices architecture with design patterns. The primary focus of recent refactoring was to eliminate code duplication and standardize service interfaces, implement efficient caption-first processing with fallback, and optimize the pipeline for better resource usage.
 
 ## Architectural Patterns
 
@@ -17,6 +17,7 @@ The core of the system now uses the Template Method pattern implemented in `Serv
   5. On failure: update status to FAILED
 - Each service only implements its specific business logic in `execute_pipeline()`
 - Eliminates code duplication significantly (services went from ~200 to ~50 lines each)
+- Service template includes a `next_stage` property that can be dynamically updated based on processing results
 
 ### 2. Factory Pattern
 The ManagerFactory creates consistent database, queue, and event managers:
@@ -27,9 +28,10 @@ The ManagerFactory creates consistent database, queue, and event managers:
 
 ### 3. Pipeline Tools Abstraction
 Pipeline tools handle their specific domain operations:
-- Each tool (AudioExtractor, VideoDownloader, etc.) handles its specific domain operation
+- Each tool (AudioDownloader, CaptionsDownloader, etc.) handles its specific domain operation
 - Tools handle their own file path logic using the FileManager
 - Separates business logic from service orchestration
+- The VideoDataDownloader coordinates between different download tools based on availability
 
 ## Component Responsibilities
 
@@ -38,6 +40,7 @@ Pipeline tools handle their specific domain operations:
 - Only implements execute_pipeline() method and helper methods
 - Handles workflow coordination
 - Updates database status
+- Dynamically sets the next stage based on processing outcomes
 - Sends messages to next service
 - Publishes events
 
@@ -47,6 +50,7 @@ Pipeline tools handle their specific domain operations:
 - Automatic logging when video_id provided
 - Uses FileManager for path operations
 - Separates business logic from service orchestration
+- The VideoDataDownloader intelligently chooses between caption and audio download based on availability
 
 ### Manager Layer (src/utils/)
 - Database, queue, and event managers
@@ -63,6 +67,7 @@ The ServiceTemplate handles the common orchestration pattern:
 - Setup file paths using FileManager with video metadata
 - Validate input file paths when needed using consistent validation
 - Call service-specific operations implemented in each service
+- Dynamically determine the next stage based on processing results
 - Handle success/failure with standard database updates, messaging, and events
 
 ## Communication Flow
@@ -70,8 +75,9 @@ The ServiceTemplate handles the common orchestration pattern:
 2. Service processes message using template pattern
 3. Service calls its pipeline tool with proper paths from FileManager
 4. Pipeline tool performs operation and logs automatically
-5. Success: Service updates DB, sends next message, publishes event
-6. Failure: Service updates DB to FAILED status
+5. Service determines actual next stage based on processing outcomes
+6. Success: Service updates DB with correct stage, sends next message, publishes event
+7. Failure: Service updates DB to FAILED status
 
 ## Benefits of Current Architecture
 - Minimal code duplication through patterns
@@ -83,3 +89,5 @@ The ServiceTemplate handles the common orchestration pattern:
 - Services focus on orchestration, pipeline tools handle domain logic
 - File path consistency through centralized FileManager
 - Proper error handling and logging patterns
+- Intelligent caption-first processing with graceful fallback to audio
+- Dynamic stage routing based on actual processing outcomes
