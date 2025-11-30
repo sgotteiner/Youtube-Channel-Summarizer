@@ -84,7 +84,7 @@ class DatabaseManager:
             session.close()
 
     def create_video_record(self, video_id: str, job_id: str, channel_name: str,
-                           title: str, upload_date: str, duration: Optional[float] = None):
+                           title: str, upload_date: str, duration: Optional[float] = None, has_captions: bool = False):
         """Create a new video record in the database."""
         session = self.client.get_session()
         try:
@@ -95,11 +95,12 @@ class DatabaseManager:
                 title=title,
                 upload_date=upload_date,
                 duration=duration,
+                has_captions=has_captions,
                 status=ProcessingStatus.PROCESSING.value
             )
             session.add(new_video)
             session.commit()
-            self._log_db_info(video_id, "Video record created in database with status PENDING")
+            self._log_db_info(video_id, f"Video record created in database with status PENDING, captions: {has_captions}")
             return True
         except Exception as e:
             self._log_db_error(video_id, f"Error creating video record: {e}")

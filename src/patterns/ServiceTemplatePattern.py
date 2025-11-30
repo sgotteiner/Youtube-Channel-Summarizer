@@ -28,6 +28,9 @@ class ServiceTemplate(Generic[T], BaseService, abc.ABC):
         self.service_type = service_type
         # Initialize with a default FileManager (will be updated per operation)
         self.file_manager = FileManager(channel_name="default", is_openai_runtime=False, logger=self.logger)
+        # Default next stage is the next enum value
+        from src.enums.service_enums import ServiceType as ST
+        self.next_stage = ST(service_type.value + 1) if service_type.value + 1 < len(ST) else None
 
 
     async def process_message(self, data: Dict[str, Any]) -> bool:
@@ -153,14 +156,11 @@ class ServiceTemplate(Generic[T], BaseService, abc.ABC):
         """
         Handle successful pipeline execution for standard services (with video_id).
         """
-        # Determine the next stage in the pipeline using the enum's numerical index
-        from src.enums.service_enums import ServiceType
-        next_service_index = self.service_type.value + 1
+        # Use the service's configured next_stage
+        from src.enums.service_enums import ProcessingStatus
+        next_service_enum = self.next_stage
 
-        if next_service_index < len(ServiceType):
-            # Move to the next stage with PROCESSING status
-            from src.enums.service_enums import ProcessingStatus
-            next_service_enum = ServiceType(next_service_index)
+        if next_service_enum is not None:
             if not self.db_manager.update_video_stage_and_status(video_id, next_service_enum.name, ProcessingStatus.PROCESSING.value):
                 return False
 
@@ -169,7 +169,6 @@ class ServiceTemplate(Generic[T], BaseService, abc.ABC):
                 return False
         else:
             # This is the final service in the pipeline, mark as completed
-            from src.enums.service_enums import ProcessingStatus
             if not self.db_manager.update_video_stage_and_status(video_id, self.service_type.name, ProcessingStatus.COMPLETED.value):
                 return False
 

@@ -70,7 +70,11 @@ class VideoDiscoverer:
                 continue
 
             if self._is_video_valid(video_details, max_video_length, apply_max_length_for_captionless_only):
-                self.logger.info(f"[{video_id}] Video is valid. Adding to discovery results.")
+                has_captions = video_details.get("has_captions", False)
+                if has_captions:
+                    self.logger.info(f"[{video_id}] Video is valid and HAS CAPTIONS. Adding to discovery results.")
+                else:
+                    self.logger.info(f"[{video_id}] Video is valid and has NO CAPTIONS. Adding to discovery results.")
                 # Add the job_id to the video details to pass to service
                 video_details['job_id'] = job_id
                 valid_videos.append(video_details)

@@ -1,15 +1,16 @@
 """
-Download Service - Downloads audio files using the service framework.
+Download Service - Downloads audio or captions using the service framework.
 """
-from src.pipeline.VideoDownloader import AudioDownloader
+from src.pipeline.VideoDownloader import VideoDataDownloader
 from src.patterns.ServiceTemplatePattern import ServiceTemplate
 from src.enums.service_enums import ServiceType
+from src.enums.service_enums import ServiceType as ST
 
 
 class DownloadService(ServiceTemplate[str]):
     def __init__(self):
         super().__init__(ServiceType.DOWNLOAD)
-        self.audio_downloader = AudioDownloader(self.logger)
+        self.data_downloader = VideoDataDownloader(self.logger)
 
     def get_input_file_path(self, video_paths):
         """
@@ -18,16 +19,34 @@ class DownloadService(ServiceTemplate[str]):
         return None  # No input file needed for download service
 
     async def perform_specific_operation(self, video, input_file_path, video_paths, video_id: str) -> str:
-        # Download service doesn't use input file path, just needs video_paths for output location
-        path_to_save_audio = video_paths["audio"].parent  # Use audio path instead of video path
-        youtube_video_url = f"https://www.youtube.com/watch?v={video_id}"
+        # Get the has_captions flag from the message data (sent by discovery service)
+        data = getattr(self, '_original_message_data', {})
+        has_captions = data.get('has_captions', False)
 
-        # Download the audio using the pipeline tool (automatically logs status)
-        downloaded_path = self.audio_downloader.download_audio(
-            youtube_video_url, video.title, video.upload_date, video_id, path_to_save_audio
+        # Initially set the next stage based on whether captions are expected to be available
+        if has_captions:
+            # If captions are expected to be available, initially assume next stage is summarization
+            self.next_stage = ST.SUMMARIZATION
+        else:
+            # If no captions expected, next stage is transcription
+            self.next_stage = ST.TRANSCRIPTION
+
+        # Use the VideoDataDownloader to download either captions or audio
+        result = await self.data_downloader.download(
+            has_captions, video_id, video.title, video.upload_date, video_paths
         )
 
-        return str(downloaded_path) if downloaded_path else None
+        # After download completes, check what was actually downloaded to determine the real next stage
+        if result:
+            from pathlib import Path
+            result_path = Path(str(result))
+
+            # If we expected captions but the result is an audio file, it means caption download failed
+            # and we fell back to audio download - so route to transcription service
+            if has_captions and result_path.suffix.lower() in ['.mp3', '.wav', '.m4a', '.aac', '.mp4']:
+                self.next_stage = ST.TRANSCRIPTION  # Update next stage to transcription service
+
+        return str(result) if result else None
 
     def get_service_specific_event_fields(self, video_id: str, video, result: str) -> dict:
         return {

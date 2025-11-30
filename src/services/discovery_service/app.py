@@ -54,12 +54,12 @@ class DiscoveryService(ServiceTemplate[dict]):
             if not self.db_manager.create_video_record(
                 discovered_video_id, job_id, channel_name,
                 video_details["video_title"], video_details["upload_date"],
-                video_details.get("duration")
+                video_details.get("duration"), video_details.get("has_captions", False)
             ):
                 continue  # Skip if creation failed
 
             # Send message to next service in the pipeline
-            if not self.queue_manager.send_message(ServiceType.DOWNLOAD, {"video_id": discovered_video_id}, discovered_video_id):
+            if not self.queue_manager.send_message(ServiceType.DOWNLOAD, {"video_id": discovered_video_id, "has_captions": video_details.get("has_captions", False)}, discovered_video_id):
                 continue  # Skip if sending message failed
 
             processed_count += 1

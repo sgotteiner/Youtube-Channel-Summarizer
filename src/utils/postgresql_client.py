@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine, Column, String, Float
+from sqlalchemy import create_engine, Column, String, Float, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import logging
@@ -26,6 +26,7 @@ class Video(Base):
     title = Column(String, nullable=False)
     upload_date = Column(String) # Keep as string to match existing data
     duration = Column(Float)
+    has_captions = Column(Boolean, default=False, nullable=False)  # Whether the video has captions available
     stage = Column(String, default=ServiceType.DISCOVERY.name, nullable=False, index=True)  # Tracks which service is currently handling the video
     status = Column(String, default=ProcessingStatus.PROCESSING.value, nullable=False, index=True)  # Tracks the processing status (PROCESSING, COMPLETED, FAILED)
 
