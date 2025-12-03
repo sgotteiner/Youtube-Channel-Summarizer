@@ -2,11 +2,12 @@
 Framework for all services to handle common patterns: status updates, logging, messaging, etc.
 """
 import abc
-from typing import Any, Dict, Optional, TypeVar, Generic
-from src.utils.base_service import BaseService
 from pathlib import Path
+from typing import Any, Dict, Optional, TypeVar, Generic
+
+from src.utils.base_service import BaseService
 from src.utils.file_manager import FileManager
-from src.enums.service_enums import ServiceType
+from src.enums.service_enums import ServiceType, ProcessingStatus
 
 
 T = TypeVar('T')
@@ -29,8 +30,8 @@ class ServiceTemplate(Generic[T], BaseService, abc.ABC):
         # Initialize with a default FileManager (will be updated per operation)
         self.file_manager = FileManager(channel_name="default", is_openai_runtime=False, logger=self.logger)
         # Default next stage is the next enum value
-        from src.enums.service_enums import ServiceType as ST
-        self.next_stage = ST(service_type.value + 1) if service_type.value + 1 < len(ST) else None
+        next_stage_idx = service_type.value + 1
+        self.next_stage = ServiceType(next_stage_idx) if next_stage_idx < len(ServiceType) else None
 
 
     async def process_message(self, data: Dict[str, Any]) -> bool:
@@ -67,7 +68,6 @@ class ServiceTemplate(Generic[T], BaseService, abc.ABC):
     async def _update_status_if_needed(self, data: Dict[str, Any]) -> bool:
         """Update video status to IN_PROGRESS if video_id is present in data."""
         if "video_id" in data:
-            from src.enums.service_enums import ProcessingStatus
             if not self.db_manager.update_video_stage_and_status(data["video_id"], self.service_type.name, ProcessingStatus.PROCESSING.value):
                 return False
         return True
@@ -157,7 +157,6 @@ class ServiceTemplate(Generic[T], BaseService, abc.ABC):
         Handle successful pipeline execution for standard services (with video_id).
         """
         # Use the service's configured next_stage
-        from src.enums.service_enums import ProcessingStatus
         next_service_enum = self.next_stage
 
         if next_service_enum is not None:
@@ -187,7 +186,6 @@ class ServiceTemplate(Generic[T], BaseService, abc.ABC):
         """
         Handle failed pipeline execution.
         """
-        from src.enums.service_enums import ProcessingStatus
         self.db_manager.update_video_stage_and_status(video_id, self.service_type.name, ProcessingStatus.FAILED.value)
         return False
 
@@ -197,4 +195,5 @@ class ServiceTemplate(Generic[T], BaseService, abc.ABC):
         Override this method in services that need to add specific fields.
         """
         # Default: no additional fields
-        return {}
+        return {} 
+ 

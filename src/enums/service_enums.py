@@ -12,4 +12,4 @@ class ProcessingStatus(Enum):
     """Enum representing the processing status of a video."""
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
+    FAILED = "FAILED" 

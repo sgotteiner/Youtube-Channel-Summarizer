@@ -230,4 +230,4 @@ class AudioTranscriber:
             return None
 
         # Save transcription to file using the separate function
-        return await self._save_transcription_to_file(transcription_text, output_path, video_id)
+        return await self._save_transcription_to_file(transcription_text, output_path, video_id) 

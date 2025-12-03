@@ -91,3 +91,4 @@ class VideoMetadataFetcher:
             # Still log that it's invalid when fetching fails
             self.logger.info("[%s] Video is invalid. Skipping.", video_id)
             return None
+ 

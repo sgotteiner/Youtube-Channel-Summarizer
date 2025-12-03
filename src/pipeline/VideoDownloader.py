@@ -60,7 +60,7 @@ class AudioDownloader:
             'prefer_ffmpeg': True,
             'extractaudio': True,
             'keepvideo': False,
-            'outtmpl': str(path_to_save_audio / f'{sanitized_filename}.%(ext)s'),  # Output path with filename
+            'outtmpl': str(path_to_save_audio / f'{sanitized_filename}.%(ext)s'),
         }
 
         try:
@@ -222,4 +222,4 @@ class VideoDataDownloader:
             upload_date,
             video_id,
             video_paths["audio"].parent
-        )
+        ) 

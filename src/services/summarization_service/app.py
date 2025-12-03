@@ -28,16 +28,29 @@ class SummarizationService(ServiceTemplate[str]):
             transcription_text = await f.read()
 
         # Generate summary using the pipeline tool (automatically logs status)
-        summary_text = await self.summarizer_agent.summary_call(transcription_text, video_id)
+        summary_text = None
+        try:
+            summary_text = await self.summarizer_agent.summary_call(transcription_text, video_id)
+            if not summary_text:
+                self.logger.info(f"[{video_id}] OpenAI returned empty summary. Saving transcription as summary instead.")
+                # If OpenAI summarization returns empty or None, save the original transcription as the summary
+                summary_text = transcription_text
+        except Exception as e:
+            self.logger.warning(f"[{video_id}] OpenAI summarization failed: {e}. Saving transcription as summary to preserve content.")
+            # If OpenAI summarization fails completely, save the original transcription as the summary
+            summary_text = transcription_text
 
         # Update MongoDB summary
         if summary_text:
             result = mongodb_client.summaries.update_one(
                 {"video_id": video_id},
-                {"$set": {"video_id": video_id, "summary": summary_text, "job_id": video.job_id}},
+                {"$set": {"video_id": video_id, "summary": summary_text, "job_id": getattr(video, 'job_id', 'unknown')}},  # Using getattr to handle cases where video doesn't have job_id
                 upsert=True
             )
             self.logger.info("[%s] SUCCESS: Summary saved to MongoDB with upsert result: %s.", video_id, result.upserted_id is not None or result.modified_count > 0)
+        else:
+            # Even if the summary is None, we want to log that we're preserving content
+            self.logger.warning(f"[{video_id}] No summary content available after processing. Original transcription was likely available but summarization failed.")
 
         return summary_text
 

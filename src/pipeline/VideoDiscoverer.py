@@ -86,4 +86,4 @@ class VideoDiscoverer:
                 break
 
         self.logger.info(f"[Job: {job_id}] Discovery complete. Found {len(valid_videos)} new videos.")
-        return valid_videos
+        return valid_videos 

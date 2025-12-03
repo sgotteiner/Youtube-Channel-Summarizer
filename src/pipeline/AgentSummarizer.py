@@ -89,10 +89,14 @@ class OpenAISummarizerAgent:
         summaries = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                self.logger.error(f"Error processing chunk {i}: {result}")
-                # Continue processing even if one chunk fails
+                self.logger.warning(f"Error processing chunk {i}, continuing with other chunks: {result}")
+                # Continue processing even if one chunk fails - this is important for resilience
             elif result:
                 summaries.append(result)
+
+        if not summaries:
+            self.logger.warning("No chunks were successfully processed. All may have failed due to rate limits or other issues.")
+
         return summaries
 
     async def _recursive_summarize(self, text: str) -> Optional[str]:
@@ -104,7 +108,18 @@ class OpenAISummarizerAgent:
 
         if token_count <= CHUNK_TARGET_SIZE:
             prompt = "You are a summary assistant. Write a summary of the transcribed audio. Don't forget new lines."
-            return await self._summarize_text(text, prompt)
+            try:
+                result = await self._summarize_text(text, prompt)
+                if result:
+                    return result
+                else:
+                    # If OpenAI call returns None but we have the original text, return the original text as fallback
+                    self.logger.info("OpenAI summarization returned None, returning original text as fallback.")
+                    return text
+            except Exception as e:
+                self.logger.warning(f"OpenAI summarization failed due to: {e}. Returning original text as fallback.")
+                # Return the original text as fallback when OpenAI fails
+                return text
 
         chunks = self._split_text_into_chunks(text)
         self.logger.info(f"Text split into {len(chunks)} chunks for summarization.")
@@ -117,7 +132,21 @@ class OpenAISummarizerAgent:
 
         combined_summary = " ".join(summaries)
         self.logger.info("All chunks summarized. Now summarizing the combined summary.")
-        return await self._recursive_summarize(combined_summary)
+
+        # Try to recursively summarize the combined summary, but if it fails (e.g., due to rate limits),
+        # return the current combined summary as the best available summary
+        try:
+            recursive_result = await self._recursive_summarize(combined_summary)
+            if recursive_result:
+                return recursive_result
+            else:
+                # If the recursive call failed but we have a combined summary, return that as fallback
+                self.logger.info("Recursive summarization failed, returning combined summary as fallback.")
+                return combined_summary
+        except Exception as e:
+            self.logger.warning(f"Recursive summarization failed due to: {e}. Returning combined summary as fallback.")
+            # Return the combined summary as the best available result
+            return combined_summary
 
     async def summary_call(self, transcription: str, video_id: str = None) -> Optional[str]:
         """
@@ -146,4 +175,4 @@ class OpenAISummarizerAgent:
             else:
                 log_error_by_video_id(self.logger, video_id, "Failed to generate summary")
 
-        return result
+        return result 
