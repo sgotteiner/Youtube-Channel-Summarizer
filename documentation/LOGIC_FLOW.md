@@ -68,6 +68,15 @@ graph TD
         DD --> II;
     end
 
+    subgraph Fallback Mechanism
+        HH --> HH2{OpenAI API successful?};
+        GG --> GG2{All chunks summarized?};
+        HH2 -- No --> HH3[Save original transcription as summary];
+        GG2 -- No --> GG3[Save partially summarized content as summary];
+        HH3 --> II;
+        GG3 --> II;
+    end
+
     subgraph Cleanup
         II --> JJ[Save final summary];
         JJ --> KK{IS_SAVE_ONLY_SUMMARIES is True?};

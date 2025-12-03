@@ -6,11 +6,11 @@ This project is a fully automated pipeline that downloads, transcribes, and summ
 
 The pipeline is composed of distinct, modular stages:
 1.  **Video Discovery:** Finds the latest videos from the channel that haven't been processed.
-2.  **Metadata Fetching:** Gathers details about each video.
-3.  **Video Downloading:** Downloads the video content.
-4.  **Audio Extraction:** Separates the audio track from the video file.
-5.  **Transcription:** Converts the audio into text.
-6.  **Summarization:** Uses an AI agent (OpenAI) to generate a concise summary of the transcription.
+2.  **Audio Download:** Downloads audio directly from YouTube videos (optimization: skips video download when possible).
+3.  **Transcription:** Converts the audio into text.
+4.  **Summarization:** Uses an AI agent (OpenAI) to generate a concise summary of the transcription.
+
+The system includes a robust fallback mechanism: if OpenAI processing fails due to rate limits or other issues, the original transcription is automatically preserved as the summary to ensure no data loss.
 
 ## Setup
 
@@ -41,13 +41,13 @@ The application is configured using a `.config` file in the root directory. Crea
 **Example `.config` file:**
 ```ini
 # The name of the YouTube channel you want to process
-CHANNEL_NAME="Marques Brownlee"
+CHANNEL_NAME="Tech With Tim"
 
 # The number of recent videos to check and process
-NUM_VIDEOS_TO_PROCESS=5
+NUM_VIDEOS_TO_PROCESS=2
 
 # The maximum video length in minutes. Videos longer than this will be skipped.
-MAX_VIDEO_LENGTH=15
+MAX_VIDEO_LENGTH=10
 
 # If True, intermediate files (videos, audio, transcriptions) will be deleted after processing,
 # leaving only the final summaries.

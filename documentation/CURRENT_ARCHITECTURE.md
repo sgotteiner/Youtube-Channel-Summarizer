@@ -89,5 +89,7 @@ The ServiceTemplate handles the common orchestration pattern:
 - Services focus on orchestration, pipeline tools handle domain logic
 - File path consistency through centralized FileManager
 - Proper error handling and logging patterns
+- Robust fallback mechanism: if OpenAI processing fails, original transcription is preserved as summary
+- Data integrity: no video processing results in data loss
 - Intelligent caption-first processing with graceful fallback to audio
 - Dynamic stage routing based on actual processing outcomes
